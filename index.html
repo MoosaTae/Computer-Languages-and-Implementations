@@ -22,52 +22,42 @@
   </div>
   <div class="sidebar-nav">
     <a class="nav-item active" onclick="navigateTo(0)">
-      <span class="nav-num">0</span>
-      Overview
+      <span class="nav-num">0</span>Overview
     </a>
     <a class="nav-item" onclick="navigateTo(1)">
-      <span class="nav-num">1</span>
-      Intro to Compilers
+      <span class="nav-num">1</span>Intro to Compilers
       <span class="nav-badge badge-high">HIGH</span>
     </a>
     <a class="nav-item" onclick="navigateTo(2)">
-      <span class="nav-num">2</span>
-      Scanner
+      <span class="nav-num">2</span>Scanner
       <span class="nav-badge badge-mod">MOD</span>
     </a>
     <a class="nav-item" onclick="navigateTo(3)">
-      <span class="nav-num">3</span>
-      CFG & Left Recursion
+      <span class="nav-num">3</span>CFG & Left Recursion
       <span class="nav-badge badge-high">HIGH</span>
     </a>
     <a class="nav-item" onclick="navigateTo(4)">
-      <span class="nav-num">4</span>
-      FIRST & FOLLOW
+      <span class="nav-num">4</span>FIRST & FOLLOW
       <span class="nav-badge badge-high">HIGH</span>
     </a>
     <a class="nav-item" onclick="navigateTo(5)">
-      <span class="nav-num">5</span>
-      Recursive Descent
+      <span class="nav-num">5</span>Recursive Descent
       <span class="nav-badge badge-high">HIGH</span>
     </a>
     <a class="nav-item" onclick="navigateTo(6)">
-      <span class="nav-num">6</span>
-      Parse Trees
+      <span class="nav-num">6</span>Parse Trees
       <span class="nav-badge badge-high">HIGH</span>
     </a>
     <a class="nav-item" onclick="navigateTo(7)">
-      <span class="nav-num">7</span>
-      Code Generation
+      <span class="nav-num">7</span>Code Generation
       <span class="nav-badge badge-high">HIGH</span>
     </a>
     <a class="nav-item" onclick="navigateTo(8)">
-      <span class="nav-num">8</span>
-      Activation Records
+      <span class="nav-num">8</span>Activation Records
       <span class="nav-badge badge-high">HIGH</span>
     </a>
     <a class="nav-item" onclick="navigateTo(9)">
-      <span class="nav-num">9</span>
-      Garbage Collection
+      <span class="nav-num">9</span>Garbage Collection
       <span class="nav-badge badge-mod">MOD</span>
     </a>
   </div>
@@ -81,980 +71,62 @@
 
 <!-- Main Content -->
 <main class="main">
-
-<!-- PAGE 0: Overview -->
-<div id="page-0" class="page active">
-  <h1>Compiler Construction</h1>
-  <p class="page-subtitle">Final Exam Guide -- The 20% that covers 80%</p>
-
-  <div class="insight">
-    A compiler is one thing: a function that maps source text to target instructions through a series of meaning-preserving transformations. Internalize that, and everything else clicks.
+  <div id="page-container" class="page active" style="display:block;">
+    <p style="color:var(--text-muted);padding:48px;">Loading...</p>
   </div>
-
-  <h2>The Compiler Pipeline</h2>
-  <div class="flow">
-    <span class="flow-step">Scanner</span>
-    <span class="flow-arrow">&rarr;</span>
-    <span class="flow-step">Parser</span>
-    <span class="flow-arrow">&rarr;</span>
-    <span class="flow-step">Semantic</span>
-    <span class="flow-arrow">&rarr;</span>
-    <span class="flow-step">IR Gen</span>
-    <span class="flow-arrow">&rarr;</span>
-    <span class="flow-step">Optimizer</span>
-    <span class="flow-arrow">&rarr;</span>
-    <span class="flow-step">Code Gen</span>
-  </div>
-
-  <h2>Topic Map</h2>
-  <table>
-    <thead><tr><th>#</th><th>Topic</th><th>Leverage</th><th>Description</th></tr></thead>
-    <tbody>
-      <tr onclick="navigateTo(1)" style="cursor:pointer"><td>1</td><td>Introduction</td><td><span class="nav-badge badge-high">HIGH</span></td><td>Compiler phases, compiler vs interpreter, front-end/back-end split</td></tr>
-      <tr onclick="navigateTo(2)" style="cursor:pointer"><td>2</td><td>Scanner</td><td><span class="nav-badge badge-mod">MOD</span></td><td>Tokens/patterns/lexemes, regex to DFA pipeline, longest match</td></tr>
-      <tr onclick="navigateTo(3)" style="cursor:pointer"><td>3</td><td>CFG & Left Recursion</td><td><span class="nav-badge badge-high">HIGH</span></td><td>Productions, left-recursion removal, ambiguity, BNF/EBNF</td></tr>
-      <tr onclick="navigateTo(4)" style="cursor:pointer"><td>4</td><td>FIRST & FOLLOW</td><td><span class="nav-badge badge-high">HIGH</span></td><td>Fixed-point computation, LL(1) parse table, conflict detection</td></tr>
-      <tr onclick="navigateTo(5)" style="cursor:pointer"><td>5</td><td>Recursive Descent</td><td><span class="nav-badge badge-high">HIGH</span></td><td>One function per non-terminal, match(), lookahead, precedence</td></tr>
-      <tr onclick="navigateTo(6)" style="cursor:pointer"><td>6</td><td>Parse Trees</td><td><span class="nav-badge badge-high">HIGH</span></td><td>Cons cells, two-stack strategy, makebintree(), action routines</td></tr>
-      <tr onclick="navigateTo(7)" style="cursor:pointer"><td>7</td><td>Code Generation</td><td><span class="nav-badge badge-high">HIGH</span></td><td>S-code instructions, 5 generation patterns, patching technique</td></tr>
-      <tr onclick="navigateTo(8)" style="cursor:pointer"><td>8</td><td>Activation Records</td><td><span class="nav-badge badge-high">HIGH</span></td><td>AR structure, 4-phase linkage, access vs control link, static coords</td></tr>
-      <tr onclick="navigateTo(9)" style="cursor:pointer"><td>9</td><td>Garbage Collection</td><td><span class="nav-badge badge-mod">MOD</span></td><td>Mark-sweep 4 phases, reference counting, generational GC</td></tr>
-    </tbody>
-  </table>
-
-  <h2>The 6 Pareto Concepts</h2>
-
-  <div class="pareto">
-    <h3>1. The Compilation Pipeline</h3>
-    <p>The 6 phases: Scanner &rarr; Parser &rarr; Semantic &rarr; IR Gen &rarr; Optimizer &rarr; Code Gen. Every other topic is a deep dive into one of these phases. Know the pipeline = know where everything fits.</p>
-  </div>
-  <div class="pareto">
-    <h3>2. FIRST/FOLLOW + LL(1) Parse Table</h3>
-    <p>Computing FIRST/FOLLOW sets using iterative fixed-point algorithm, then building the parse table. This is the mathematical backbone of all top-down parsing.</p>
-  </div>
-  <div class="pareto">
-    <h3>3. Grammar &rarr; Parser &rarr; Code</h3>
-    <p>Left-recursion removal, then one-function-per-nonterminal translation. The grammar IS the code. This is the core skill -- tested heavily.</p>
-  </div>
-  <div class="pareto">
-    <h3>4. S-code Generation Patterns</h3>
-    <p>get/put for locals, ld/st for globals, lit for constants, jf/jmp for control flow, patching for forward jumps. Know the 5 patterns (arithmetic local/global, if-else, function call, recursion).</p>
-  </div>
-  <div class="pareto">
-    <h3>5. Activation Record + 4-Phase Linkage</h3>
-    <p>AR fields, pre-call/prolog/epilog/post-return, access link vs control link, static coordinates. One diagram drawn correctly answers a dozen sub-questions.</p>
-  </div>
-  <div class="pareto">
-    <h3>6. Two-Stack Parse Tree Construction</h3>
-    <p>Argument stack + operator stack, makebintree() function, action routines in parser. Bridges parsing and code generation.</p>
-  </div>
-
-  <h2>Quick Decision Table</h2>
-  <table>
-    <thead><tr><th>When you see this on the exam...</th><th>Think about...</th></tr></thead>
-    <tbody>
-      <tr><td>"Name the compiler phases"</td><td>Scanner, Parser, Semantic, IR Gen, Optimizer, Code Gen</td></tr>
-      <tr><td>"What is a token/lexeme/pattern?"</td><td>Token = category, lexeme = actual string, pattern = regex rule</td></tr>
-      <tr><td>Grammar with left recursion</td><td>Rewrite to <code>A = B {x B}</code> form</td></tr>
-      <tr><td>"Compute FIRST/FOLLOW"</td><td>Iterative fixed-point: start empty, apply rules, repeat</td></tr>
-      <tr><td>"Build LL(1) parse table"</td><td>FIRST sets fill cells; epsilon productions use FOLLOW sets</td></tr>
-      <tr><td>"Is this grammar LL(1)?"</td><td>Check for conflicts: left recursion or common prefixes</td></tr>
-      <tr><td>"Write a parser for..."</td><td>One function per non-terminal, match() for terminals</td></tr>
-      <tr><td>"Generate S-code for..."</td><td>get/put locals, ld/st globals, lit constants, jf/jmp control</td></tr>
-      <tr><td>"Show the activation record"</td><td>Draw: args, return addr, control link, access link, saved regs, locals, temps</td></tr>
-      <tr><td>"How does function call work?"</td><td>Pre-call &rarr; Prolog &rarr; [execute] &rarr; Epilog &rarr; Post-return</td></tr>
-      <tr><td>"Access variable from outer scope"</td><td>Follow access links (not control), use static coordinate &lt;level, offset&gt;</td></tr>
-      <tr><td>"What is garbage collection?"</td><td>Mark-sweep (4 phases) vs reference counting, know trade-offs</td></tr>
-      <tr><td>"Build a parse tree for..."</td><td>Two stacks: push operands, pushop operators, makebintree()</td></tr>
-    </tbody>
-  </table>
-
-  <h2>Study Priority</h2>
-  <ol>
-    <li><strong>S-code generation</strong> -- practice translating 3-4 examples end-to-end</li>
-    <li><strong>FIRST/FOLLOW + LL(1) table</strong> -- practice the iterative algorithm</li>
-    <li><strong>Activation records</strong> -- draw stack frames for recursive calls like fact(3)</li>
-    <li><strong>Recursive descent</strong> -- from grammar to code</li>
-    <li><strong>Procedure linkage</strong> -- 4-phase sequence</li>
-    <li><strong>Parse tree construction</strong> -- trace with stacks</li>
-    <li><strong>CFG</strong> -- ambiguity, left recursion, BNF/EBNF</li>
-    <li><strong>Compiler phases</strong> -- quick review, conceptual</li>
-    <li><strong>Scanner</strong> -- tokens, regex, DFA/NFA concepts</li>
-    <li><strong>Garbage collection</strong> -- mark-sweep phases, ref counting trade-offs</li>
-  </ol>
-
-  <div class="page-nav">
-    <span></span>
-    <a onclick="navigateTo(1)">Next: Introduction &rarr;</a>
-  </div>
-</div>
-
-<!-- PAGE 1: Introduction -->
-<div id="page-1" class="page">
-  <h1>Introduction to Compilers</h1>
-  <p class="page-subtitle">What a compiler actually is, and why the pipeline structure is everything</p>
-
-  <h2>Compiler vs. Interpreter</h2>
-  <p>A <strong>compiler</strong> translates your entire source program into a target program. Run the target later, separately. The compiler is not present at runtime.</p>
-  <p>An <strong>interpreter</strong> walks the parse tree and executes it directly. No separate target. The interpreter is present at runtime, doing work every execution.</p>
-
-  <div class="insight">
-    A code generator works exactly like an interpreter, except instead of <em>executing</em> each operation, it <em>outputs an instruction</em> for it. Same tree walk. Different output destination. This insight connects parsing to code generation.
-  </div>
-
-  <table>
-    <thead><tr><th></th><th>Compiler</th><th>Interpreter</th></tr></thead>
-    <tbody>
-      <tr><td><strong>What it does</strong></td><td>Translates entire source to target program</td><td>Executes parse tree directly</td></tr>
-      <tr><td><strong>When execution happens</strong></td><td>After translation is complete</td><td>During the translation</td></tr>
-      <tr><td><strong>Output</strong></td><td>Machine code / intermediate code</td><td>Direct results</td></tr>
-    </tbody>
-  </table>
-
-  <h2>The 6 Compilation Phases</h2>
-  <div class="flow">
-    <span class="flow-step">Characters</span>
-    <span class="flow-arrow">&rarr;</span>
-    <span class="flow-step">Scanner</span>
-    <span class="flow-arrow">&rarr;</span>
-    <span class="flow-step">Tokens</span>
-    <span class="flow-arrow">&rarr;</span>
-    <span class="flow-step">Parser</span>
-    <span class="flow-arrow">&rarr;</span>
-    <span class="flow-step">Parse Tree</span>
-    <span class="flow-arrow">&rarr;</span>
-    <span class="flow-step">Semantic</span>
-    <span class="flow-arrow">&rarr;</span>
-    <span class="flow-step">Annotated Tree</span>
-    <span class="flow-arrow">&rarr;</span>
-    <span class="flow-step">IR Gen</span>
-    <span class="flow-arrow">&rarr;</span>
-    <span class="flow-step">Optimizer</span>
-    <span class="flow-arrow">&rarr;</span>
-    <span class="flow-step">Code Gen</span>
-    <span class="flow-arrow">&rarr;</span>
-    <span class="flow-step">Target Code</span>
-  </div>
-
-  <table>
-    <thead><tr><th>Phase</th><th>Input</th><th>Output</th><th>Purpose</th></tr></thead>
-    <tbody>
-      <tr><td><strong>Scanner</strong></td><td>Characters</td><td>Tokens</td><td>Group chars into meaningful tokens</td></tr>
-      <tr><td><strong>Parser</strong></td><td>Tokens</td><td>Parse tree</td><td>Check syntax against grammar rules</td></tr>
-      <tr><td><strong>Semantic Analyzer</strong></td><td>Parse tree</td><td>Annotated tree</td><td>Type checking, scope resolution</td></tr>
-      <tr><td><strong>IR Generator</strong></td><td>Annotated tree</td><td>Three-address code</td><td>Machine-independent representation</td></tr>
-      <tr><td><strong>Optimizer</strong></td><td>IR code</td><td>Optimized IR</td><td>Replace inefficient sequences</td></tr>
-      <tr><td><strong>Code Generator</strong></td><td>Optimized IR</td><td>Target code</td><td>Produce final machine instructions</td></tr>
-    </tbody>
-  </table>
-
-  <h2>Front-End vs. Back-End</h2>
-  <div class="diagram">FRONT-END (Language-specific)          BACK-END (Hardware-specific)
-+----------------------------+    +----------------------------+
-| Scanner                    |    | Code Optimizer             |
-| Parser                     | -> | Code Generator             |
-| Semantic Analyzer          |    |                            |
-| Intermediate Code Gen      |    |                            |
-+----------------------------+    +----------------------------+
-  Reusable for same language       Different per target machine</div>
-
-  <p>One front-end serves multiple back-ends. One back-end serves multiple front-ends. This is how GCC/LLVM work.</p>
-
-  <h2>Data Flow Example</h2>
-  <pre><code>Source:    "x = y + 3"
-Scanner:   [id:x] [=] [id:y] [+] [num:3]
-Parser:    (= x (+ y 3))
-Semantic:  (= x:int (+ y:int 3:int))
-IR Code:   t1 = y + 3; x = t1
-Optimized: x = y + 3
-Code Gen:  ld.y  lit.3  add  st.x</code></pre>
-
-  <div class="pareto">
-    <strong>The pipeline is a chain of transformations.</strong> Each phase takes one representation and produces another. Understanding this chain means you understand where every other topic fits:
-    CFG/Parsing = Parser phase, FIRST/FOLLOW = Parser decisions, Code Generation = back-end, Activation Records = runtime support.
-  </div>
-
-  <h2>Exam Checklist</h2>
-  <ul class="checklist">
-    <li><span class="check-box"></span><span class="check-text">Name all 6 compiler phases in order with input/output</span></li>
-    <li><span class="check-box"></span><span class="check-text">Explain compiler vs interpreter difference</span></li>
-    <li><span class="check-box"></span><span class="check-text">Explain front-end vs back-end and why the split is useful</span></li>
-    <li><span class="check-box"></span><span class="check-text">Trace "x = y + 3" through all phases to S-code</span></li>
-    <li><span class="check-box"></span><span class="check-text">Explain why code generator resembles an interpreter</span></li>
-  </ul>
-
-  <div class="page-nav">
-    <a onclick="navigateTo(0)">&larr; Overview</a>
-    <a onclick="navigateTo(2)">Next: Scanner &rarr;</a>
-  </div>
-</div>
-
-<!-- PAGE 2: Scanner -->
-<div id="page-2" class="page">
-  <h1>Scanner (Lexical Analysis)</h1>
-  <p class="page-subtitle">The first phase: turning a stream of characters into tokens</p>
-
-  <h2>What the Scanner Does</h2>
-  <pre><code>Input:  "if (age >= 18) grade = 3.14"
-Output: [if] [(] [id:age] [>=] [num:18] [)] [id:grade] [=] [num:3.14]</code></pre>
-
-  <h2>Tokens, Patterns, and Lexemes</h2>
-  <table>
-    <thead><tr><th>Term</th><th>Definition</th><th>Example</th></tr></thead>
-    <tbody>
-      <tr><td><strong>Token</strong></td><td>The category</td><td><code>identifier</code>, <code>number</code>, <code>keyword</code></td></tr>
-      <tr><td><strong>Pattern</strong></td><td>The regex rule</td><td><code>letter(letter|digit)*</code></td></tr>
-      <tr><td><strong>Lexeme</strong></td><td>The actual string matched</td><td><code>age</code>, <code>grade</code>, <code>3.14</code></td></tr>
-    </tbody>
-  </table>
-
-  <h2>Regex Patterns</h2>
-  <pre><code>Identifier:  letter ( letter | digit )*
-Number:      (+|-)? digit+ (. digit+)? (E (+|-)? digit+)?
-Keyword:     if | else | while | for | return</code></pre>
-
-  <h2>Construction Pipeline</h2>
-  <div class="flow">
-    <span class="flow-step">Regex</span>
-    <span class="flow-arrow">&rarr;</span>
-    <span class="flow-step">NFA (per token)</span>
-    <span class="flow-arrow">&rarr;</span>
-    <span class="flow-step">Combined NFA</span>
-    <span class="flow-arrow">&rarr;</span>
-    <span class="flow-step">DFA</span>
-    <span class="flow-arrow">&rarr;</span>
-    <span class="flow-step">Scanner Code</span>
-  </div>
-
-  <table>
-    <thead><tr><th>Implementation</th><th>How it works</th></tr></thead>
-    <tbody>
-      <tr><td><strong>Nested-if / switch</strong></td><td>Switch on current state and character</td></tr>
-      <tr><td><strong>Transition table</strong></td><td>2D matrix: <code>[state][char] &rarr; next_state</code></td></tr>
-    </tbody>
-  </table>
-
-  <h2>Disambiguating Rules</h2>
-  <div class="insight">
-    <strong>Longest Match (Maximal Munch):</strong> Always consume the longest possible token. <code>&lt;=</code> is one token, not two. <code>ifstream</code> is an identifier, not keyword <code>if</code> + <code>stream</code>.<br><br>
-    <strong>Keyword Priority:</strong> If longest match ties between keyword and identifier, keyword wins.
-  </div>
-
-  <h2>Scanner-Parser Interaction</h2>
-  <div class="diagram">Parser: "I need the next token"
-   |
-   v
-Scanner: reads characters --> returns token + attributes
-   |
-   v
-Parser: uses token to make parsing decisions
-
-Scanner is LAZY (waits). Parser is ACTIVE (requests).</div>
-
-  <div class="pareto">
-    <strong>3 things that matter:</strong> (1) Tokens are the interface between scanner and parser. (2) Regex &rarr; NFA &rarr; DFA is the pipeline. (3) Longest match resolves ambiguity.
-  </div>
-
-  <h2>Exam Checklist</h2>
-  <ul class="checklist">
-    <li><span class="check-box"></span><span class="check-text">Distinguish token, pattern, and lexeme with examples</span></li>
-    <li><span class="check-box"></span><span class="check-text">Write regex for identifiers and numbers</span></li>
-    <li><span class="check-box"></span><span class="check-text">Trace regex &rarr; NFA &rarr; DFA pipeline</span></li>
-    <li><span class="check-box"></span><span class="check-text">Explain longest substring principle</span></li>
-    <li><span class="check-box"></span><span class="check-text">Explain scanner-parser interaction</span></li>
-  </ul>
-
-  <div class="page-nav">
-    <a onclick="navigateTo(1)">&larr; Introduction</a>
-    <a onclick="navigateTo(3)">Next: CFG &rarr;</a>
-  </div>
-</div>
-
-<!-- PAGE 3: CFG -->
-<div id="page-3" class="page">
-  <h1>Context-Free Grammars & Left Recursion</h1>
-  <p class="page-subtitle">The grammar IS the language. Get this wrong and your parser loops forever.</p>
-
-  <h2>CFG Anatomy</h2>
-  <ul>
-    <li><strong>Terminal</strong> -- actual tokens: <code>id</code>, <code>+</code>, <code>(</code></li>
-    <li><strong>Non-terminal</strong> -- abstract category: <code>Expr</code>, <code>Term</code></li>
-    <li><strong>Start symbol</strong> -- top-level non-terminal</li>
-    <li><strong>Production</strong> -- rewrite rule: <code>A &rarr; ...</code></li>
-  </ul>
-
-  <h2>Left Recursion: The Infinite Loop Trap</h2>
-  <div class="warning">
-    A rule like <code>expr &rarr; expr op term | term</code> means <code>parseExpr()</code> immediately calls <code>parseExpr()</code> before consuming any input. Stack overflow. Every time.
-  </div>
-
-  <h3>The Fix: Before & After</h3>
-  <pre><code>BEFORE (left-recursive):          AFTER (EBNF, safe):
-  ex = ex + term | term             ex = term { (+ | -) term }
-  term = term * factor | factor     term = factor { * factor }
-  factor = ( ex ) | id              factor = ( ex ) | id
-
-General pattern:
-  A = A x | y  -->  A = y { x }</code></pre>
-
-  <h2>BNF vs EBNF</h2>
-  <table>
-    <thead><tr><th>Notation</th><th>Meaning</th><th>Code equivalent</th></tr></thead>
-    <tbody>
-      <tr><td><code>::=</code></td><td>produces (same as &rarr;)</td><td>function definition</td></tr>
-      <tr><td><code>|</code></td><td>alternation (or)</td><td><code>if/else</code></td></tr>
-      <tr><td><code>{ }</code></td><td>zero or more (EBNF)</td><td><code>while</code> loop</td></tr>
-      <tr><td><code>[ ]</code></td><td>optional (EBNF)</td><td><code>if</code> statement</td></tr>
-    </tbody>
-  </table>
-
-  <h2>Ambiguous Grammars</h2>
-  <p>A grammar is <strong>ambiguous</strong> if one string has two valid parse trees.</p>
-  <pre><code>Ambiguous:  E -> E + E | E * E | id
-String "id + id * id" has TWO trees -- one groups + first, one groups * first.
-
-Fix: use grammar hierarchy for precedence.
-  expr = term { + term }      // low precedence at top
-  term = factor { * factor }  // high precedence deeper
-  factor = id | ( expr )</code></pre>
-
-  <table>
-    <thead><tr><th>Problem</th><th>Fix</th></tr></thead>
-    <tbody>
-      <tr><td>Operator precedence</td><td>Higher-precedence ops deeper in grammar</td></tr>
-      <tr><td>Left associativity</td><td>Left-recursive rules (or EBNF <code>{}</code>)</td></tr>
-      <tr><td>Dangling else</td><td>Split into MatchedSt vs UnmatchedSt</td></tr>
-    </tbody>
-  </table>
-
-  <h2>Derivations</h2>
-  <table>
-    <thead><tr><th>Type</th><th>Rule</th><th>Used by</th></tr></thead>
-    <tbody>
-      <tr><td><strong>Leftmost</strong></td><td>Replace leftmost non-terminal first</td><td>Top-down parsers</td></tr>
-      <tr><td><strong>Rightmost</strong></td><td>Replace rightmost non-terminal first</td><td>Bottom-up parsers (in reverse)</td></tr>
-    </tbody>
-  </table>
-
-  <h2>Indirect Left Recursion</h2>
-  <p><code>A =&gt; X =&gt;* A Y</code> -- A derives itself through other non-terminals. Good news from class: "never seen in real programming languages." Direct removal is sufficient.</p>
-
-  <div class="pareto">
-    <strong>3 essential skills:</strong> (1) Identify left recursion. (2) Remove it: <code>A = Ax | y</code> becomes <code>A = y{x}</code>. (3) Understand and resolve ambiguity via grammar hierarchy.
-  </div>
-
-  <h2>Exam Checklist</h2>
-  <ul class="checklist">
-    <li><span class="check-box"></span><span class="check-text">Identify left recursion in any grammar</span></li>
-    <li><span class="check-box"></span><span class="check-text">Apply elimination formula: A = Ax | y becomes A = y{x}</span></li>
-    <li><span class="check-box"></span><span class="check-text">Convert between BNF and EBNF notation</span></li>
-    <li><span class="check-box"></span><span class="check-text">Identify ambiguous grammar by showing two parse trees</span></li>
-    <li><span class="check-box"></span><span class="check-text">Resolve ambiguity with precedence and associativity</span></li>
-    <li><span class="check-box"></span><span class="check-text">Explain dangling else and the fix</span></li>
-  </ul>
-
-  <div class="page-nav">
-    <a onclick="navigateTo(2)">&larr; Scanner</a>
-    <a onclick="navigateTo(4)">Next: FIRST & FOLLOW &rarr;</a>
-  </div>
-</div>
-
-<!-- PAGE 4: FIRST/FOLLOW -->
-<div id="page-4" class="page">
-  <h1>FIRST and FOLLOW Sets</h1>
-  <p class="page-subtitle">The two sets that make top-down parsing mechanical. Master these, and LL(1) tables write themselves.</p>
-
-  <div class="insight">
-    <strong>FIRST tells you which production to choose. FOLLOW tells you when to use the epsilon production.</strong>
-  </div>
-
-  <h2>FIRST Set Rules</h2>
-  <table>
-    <thead><tr><th>Case</th><th>Rule</th></tr></thead>
-    <tbody>
-      <tr><td>Terminal t</td><td>FIRST(t) = {t}</td></tr>
-      <tr><td>Epsilon</td><td>FIRST(&epsilon;) = {&epsilon;}</td></tr>
-      <tr><td>A &rarr; &alpha;<sub>1</sub> | &alpha;<sub>2</sub></td><td>FIRST(A) = FIRST(&alpha;<sub>1</sub>) &cup; FIRST(&alpha;<sub>2</sub>)</td></tr>
-      <tr><td>Sequence X<sub>1</sub>X<sub>2</sub>...X<sub>n</sub></td><td>Start with FIRST(X<sub>1</sub>). If &epsilon; in FIRST(X<sub>1</sub>), add FIRST(X<sub>2</sub>), etc. &epsilon; in result only if in ALL.</td></tr>
-    </tbody>
-  </table>
-
-  <h2>FOLLOW Set Rules</h2>
-  <table>
-    <thead><tr><th>#</th><th>Condition</th><th>Action</th></tr></thead>
-    <tbody>
-      <tr><td>1</td><td>A is start symbol</td><td>Add <code>$</code> to FOLLOW(A)</td></tr>
-      <tr><td>2</td><td>B &rarr; ...A t ...</td><td>Add t to FOLLOW(A)</td></tr>
-      <tr><td>3</td><td>B &rarr; ...A C and &epsilon; in FIRST(C)</td><td>Add FOLLOW(B) to FOLLOW(A)</td></tr>
-      <tr><td>4</td><td>B &rarr; ...A (A at end)</td><td>Add FOLLOW(B) to FOLLOW(A)</td></tr>
-    </tbody>
-  </table>
-
-  <h2>Algorithm: Fixed-Point Iteration</h2>
-  <pre><code>1. Initialize all FIRST/FOLLOW sets to empty
-2. Apply all rules exhaustively -- add every token you can
-3. Repeat until NO set changes
-Terminates because sets only grow and token universe is finite.</code></pre>
-
-  <h2>Worked Example</h2>
-  <pre><code>Grammar:
-  exp    -> term exp'
-  exp'   -> addop term exp' | lambda
-  addop  -> + | -
-  term   -> factor term'
-  term'  -> mulop factor term' | lambda
-  mulop  -> *
-  factor -> ( exp ) | num</code></pre>
-
-  <h3>Final FIRST Sets</h3>
-  <table>
-    <thead><tr><th>Non-terminal</th><th>FIRST</th></tr></thead>
-    <tbody>
-      <tr><td>exp, term, factor</td><td>{ (, num }</td></tr>
-      <tr><td>exp'</td><td>{ +, -, &epsilon; }</td></tr>
-      <tr><td>term'</td><td>{ *, &epsilon; }</td></tr>
-      <tr><td>addop</td><td>{ +, - }</td></tr>
-      <tr><td>mulop</td><td>{ * }</td></tr>
-    </tbody>
-  </table>
-
-  <h3>Final FOLLOW Sets</h3>
-  <table>
-    <thead><tr><th>Non-terminal</th><th>FOLLOW</th></tr></thead>
-    <tbody>
-      <tr><td>exp, exp'</td><td>{ $, ) }</td></tr>
-      <tr><td>term, term'</td><td>{ +, -, $, ) }</td></tr>
-      <tr><td>factor</td><td>{ *, +, -, $, ) }</td></tr>
-      <tr><td>addop, mulop</td><td>{ (, num }</td></tr>
-    </tbody>
-  </table>
-
-  <h2>Building the LL(1) Parse Table</h2>
-  <p>For each production A &rarr; &alpha;:</p>
-  <ul>
-    <li>For each terminal <code>a</code> in FIRST(&alpha;): add A &rarr; &alpha; to M[A, a]</li>
-    <li>If &epsilon; in FIRST(&alpha;): for each terminal <code>b</code> in FOLLOW(A), add A &rarr; &alpha; to M[A, b]</li>
-  </ul>
-
-  <h2>LL(1) Conflicts</h2>
-  <table>
-    <thead><tr><th>Cause</th><th>Example</th><th>Fix</th></tr></thead>
-    <tbody>
-      <tr><td>Left recursion</td><td><code>E &rarr; E + T | T</code></td><td>Remove: <code>E &rarr; T E'</code></td></tr>
-      <tr><td>Common prefix</td><td><code>A &rarr; x Y | x Z</code></td><td>Left factor: <code>A &rarr; x A'</code></td></tr>
-    </tbody>
-  </table>
-
-  <pre><code>Left factoring example:
-  Before: Stmt -> if (E) Stmt | if (E) Stmt else Stmt
-  After:  Stmt -> if (E) Stmt Stmt'
-          Stmt' -> else Stmt | epsilon</code></pre>
-
-  <h2>Exam Checklist</h2>
-  <ul class="checklist">
-    <li><span class="check-box"></span><span class="check-text">Compute FIRST sets iteratively from scratch</span></li>
-    <li><span class="check-box"></span><span class="check-text">Compute FOLLOW sets using all 4 rules</span></li>
-    <li><span class="check-box"></span><span class="check-text">Handle nullable productions in FIRST correctly</span></li>
-    <li><span class="check-box"></span><span class="check-text">Build an LL(1) parse table from FIRST/FOLLOW</span></li>
-    <li><span class="check-box"></span><span class="check-text">Detect LL(1) conflicts and apply left factoring</span></li>
-  </ul>
-
-  <div class="page-nav">
-    <a onclick="navigateTo(3)">&larr; CFG</a>
-    <a onclick="navigateTo(5)">Next: Recursive Descent &rarr;</a>
-  </div>
-</div>
-
-<!-- PAGE 5: Recursive Descent -->
-<div id="page-5" class="page">
-  <h1>Recursive Descent Parsing</h1>
-  <p class="page-subtitle">One function per non-terminal. The grammar IS the code.</p>
-
-  <div class="insight">
-    Every non-terminal becomes a function. Every production becomes a branch. You are not writing a parser -- you are transcribing a grammar.
-  </div>
-
-  <h2>Translation Rules</h2>
-  <table>
-    <thead><tr><th>Grammar Form</th><th>Code Pattern</th></tr></thead>
-    <tbody>
-      <tr><td><code>A = X Y Z</code> (sequence)</td><td>Call X(); Y(); Z() in order</td></tr>
-      <tr><td><code>A = X | Y</code> (alternation)</td><td><code>if tok in FIRST(X) then X() else Y()</code></td></tr>
-      <tr><td><code>A = { X }</code> (repetition)</td><td><code>while tok in FIRST(X): X()</code></td></tr>
-      <tr><td>Terminal <code>t</code></td><td><code>match(t)</code></td></tr>
-      <tr><td>Non-terminal <code>B</code></td><td>Call <code>B()</code></td></tr>
-    </tbody>
-  </table>
-
-  <h2>match() Function</h2>
-  <pre><code>match(expected):
-    if tok == expected:
-        tok = next_token()    // ADVANCE
-    else:
-        error()               // VERIFY</code></pre>
-  <p>Does two things: verify the current token, then advance. Forgetting either is a bug.</p>
-
-  <h2>Full Example</h2>
-  <pre><code>Grammar: ex = term { op term }, op = + | -, term = ( ex ) | id
-
-op():
-    if tok == '+':  match('+')
-    elif tok == '-': match('-')
-    else: error()
-
-term():
-    if tok == '(':
-        match('(')
-        ex()
-        match(')')
-    elif tok == 'id':
-        match('id')
-    else: error()
-
-ex():
-    term()
-    while tok == '+' or tok == '-':  // {op term} = while loop
-        op()
-        term()</code></pre>
-
-  <h2>Operator Precedence via Grammar Structure</h2>
-  <pre><code>ex   = term { (+ | -) term }    // LOW precedence (processed last)
-term = factor { * factor }      // HIGH precedence (processed first)
-factor = ( ex ) | id | num      // BASE (atoms)</code></pre>
-  <p>Higher-precedence operators go <strong>deeper</strong> in the grammar. <code>term()</code> completes before <code>ex()</code> processes the next <code>+</code>, so multiplication binds tighter.</p>
-
-  <h2>Error Handling</h2>
-  <ol>
-    <li><strong>Failed matches:</strong> <code>match()</code> calls error when token is wrong</li>
-    <li><strong>Default branches:</strong> Every function has an <code>else: error()</code></li>
-    <li><strong>Return codes:</strong> Functions return 1=OK, 0=error; caller propagates</li>
-  </ol>
-
-  <div class="warning">
-    <strong>Left recursion = infinite loop.</strong> <code>ex()</code> calling <code>ex()</code> immediately without consuming tokens overflows the stack. Always fix the grammar first.
-  </div>
-
-  <div class="pareto">
-    <strong>2 skills that cover 80%:</strong> (1) Translate grammar to parser code mechanically. (2) Trace parser execution step by step for a given input.
-  </div>
-
-  <h2>Exam Checklist</h2>
-  <ul class="checklist">
-    <li><span class="check-box"></span><span class="check-text">Write parser functions from any grammar</span></li>
-    <li><span class="check-box"></span><span class="check-text">Know when to use if/else vs while</span></li>
-    <li><span class="check-box"></span><span class="check-text">Handle lookahead (peek) vs matching (consume)</span></li>
-    <li><span class="check-box"></span><span class="check-text">Trace parser execution for a given input</span></li>
-    <li><span class="check-box"></span><span class="check-text">Explain how grammar structure enforces precedence</span></li>
-  </ul>
-
-  <div class="page-nav">
-    <a onclick="navigateTo(4)">&larr; FIRST & FOLLOW</a>
-    <a onclick="navigateTo(6)">Next: Parse Trees &rarr;</a>
-  </div>
-</div>
-
-<!-- PAGE 6: Parse Trees -->
-<div id="page-6" class="page">
-  <h1>Parse Trees & Action Routines</h1>
-  <p class="page-subtitle">Two stacks + makebintree() = the entire tree-building mechanism</p>
-
-  <h2>Parse Tree Structure</h2>
-  <div class="diagram">Expression: a = b + c
-List form:  (= a (+ b c))
-
-Tree form:       =
-                / \
-               a    +
-                   / \
-                  b    c</div>
-
-  <h2>Cons Cell Operations</h2>
-  <table>
-    <thead><tr><th>Operation</th><th>Returns</th><th>Description</th></tr></thead>
-    <tbody>
-      <tr><td><code>isatom(a)</code></td><td>bool</td><td>Is this a leaf node?</td></tr>
-      <tr><td><code>head(a)</code></td><td>first element</td><td>Left child of dot-pair</td></tr>
-      <tr><td><code>tail(a)</code></td><td>rest of list</td><td>Right child of dot-pair</td></tr>
-      <tr><td><code>cons(h, t)</code></td><td>new pair</td><td>Create cell with head=h, tail=t</td></tr>
-      <tr><td><code>newatom(x)</code></td><td>new atom</td><td>Create leaf with value x</td></tr>
-    </tbody>
-  </table>
-
-  <h2>Two-Stack Strategy</h2>
-  <table>
-    <thead><tr><th>Stack</th><th>Stores</th><th>Operations</th></tr></thead>
-    <tbody>
-      <tr><td><strong>Argument stack</strong> (ystack)</td><td>Operands and subtrees</td><td><code>push(arg)</code>, <code>pop()</code></td></tr>
-      <tr><td><strong>Operator stack</strong> (zstack)</td><td>Operators (+, -, *)</td><td><code>pushop(op)</code>, <code>popop()</code></td></tr>
-    </tbody>
-  </table>
-
-  <h2>makebintree()</h2>
-  <pre><code>makebintree():
-    b  = pop()        // right operand
-    a  = pop()        // left operand
-    op = popop()      // operator
-    c  = cons(op, cons(a, cons(b, NIL)))  // build (op a b)
-    push(c)           // push subtree back</code></pre>
-
-  <h2>Parser with Action Routines</h2>
-  <pre><code>op():   pushop(tok); match(tok)
-
-term():
-    if tok == '(':
-        match('('); ex(); match(')')
-        makebintree()       // bind inner expression FIRST
-    elif tok == id:
-        push(tok); match(id)
-
-ex():
-    term()
-    if tok == '+' or tok == '-':
-        op(); term(); makebintree()</code></pre>
-
-  <h2>Trace: input <code>(x + y)</code></h2>
-  <table>
-    <thead><tr><th>#</th><th>Action</th><th>Arg Stack</th><th>Op Stack</th></tr></thead>
-    <tbody>
-      <tr><td>1</td><td>match '('</td><td>[]</td><td>[]</td></tr>
-      <tr><td>2</td><td>push(x), match(id)</td><td>[x]</td><td>[]</td></tr>
-      <tr><td>3</td><td>pushop(+), match('+')</td><td>[x]</td><td>[+]</td></tr>
-      <tr><td>4</td><td>push(y), match(id)</td><td>[x, y]</td><td>[+]</td></tr>
-      <tr><td>5</td><td>match ')'</td><td>[x, y]</td><td>[+]</td></tr>
-      <tr><td>6</td><td>makebintree()</td><td><strong>[(+ x y)]</strong></td><td>[]</td></tr>
-    </tbody>
-  </table>
-
-  <div class="warning">
-    <strong>Parenthesized expressions:</strong> <code>makebintree()</code> is called inside <code>term()</code> immediately after matching <code>)</code>. This ensures inner operations are bound into a subtree BEFORE the outer expression continues. That is how <code>(a+b)*c</code> correctly groups <code>a+b</code> first.
-  </div>
-
-  <div class="pareto">
-    The entire topic reduces to one skill: <strong>trace the argument stack and operator stack step by step through an expression.</strong> Master that trace and you master this chapter.
-  </div>
-
-  <h2>Exam Checklist</h2>
-  <ul class="checklist">
-    <li><span class="check-box"></span><span class="check-text">Draw parse tree from an expression</span></li>
-    <li><span class="check-box"></span><span class="check-text">Use cons/head/tail/isatom operations</span></li>
-    <li><span class="check-box"></span><span class="check-text">Trace makebintree() step by step</span></li>
-    <li><span class="check-box"></span><span class="check-text">Show both stacks during full parsing trace</span></li>
-    <li><span class="check-box"></span><span class="check-text">Trace parenthesized expression building</span></li>
-  </ul>
-
-  <div class="page-nav">
-    <a onclick="navigateTo(5)">&larr; Recursive Descent</a>
-    <a onclick="navigateTo(7)">Next: Code Generation &rarr;</a>
-  </div>
-</div>
-
-<!-- PAGE 7: Code Generation -->
-<div id="page-7" class="page">
-  <h1>Code Generation & S-Code</h1>
-  <p class="page-subtitle">The code generator IS an interpreter that writes instead of executes</p>
-
-  <h2>S-Code Virtual Machine</h2>
-  <p>Stack-based, zero-address VM. 32-bit instructions: <strong>24-bit argument | 8-bit opcode</strong>. 36 total instructions.</p>
-
-  <h2>Instruction Reference</h2>
-  <table>
-    <thead><tr><th>Category</th><th>Instructions</th></tr></thead>
-    <tbody>
-      <tr><td><strong>Data</strong></td><td><code>get.N</code> (push local), <code>put.N</code> (store local), <code>ld.x</code> (push global), <code>st.x</code> (store global), <code>lit.N</code> (push constant), <code>ldx</code>/<code>stx</code> (array)</td></tr>
-      <tr><td><strong>Arithmetic</strong></td><td><code>add</code>, <code>sub</code>, <code>mul</code>, <code>div</code>, <code>mod</code>, <code>inc</code>, <code>dec</code></td></tr>
-      <tr><td><strong>Logic</strong></td><td><code>band</code>, <code>bor</code>, <code>bxor</code>, <code>shl</code>, <code>shr</code>, <code>not</code></td></tr>
-      <tr><td><strong>Compare</strong></td><td><code>eq</code>, <code>ne</code>, <code>lt</code>, <code>le</code>, <code>gt</code>, <code>ge</code></td></tr>
-      <tr><td><strong>Control</strong></td><td><code>jf.L</code> (jump if false), <code>jt.L</code> (jump if true), <code>jmp.L</code> (unconditional)</td></tr>
-      <tr><td><strong>Function</strong></td><td><code>fun.x</code> (header), <code>call.f</code> (call), <code>ret.y</code> (return), <code>sys.N</code> (syscall)</td></tr>
-    </tbody>
-  </table>
-
-  <h2>The 5 Code Generation Patterns</h2>
-
-  <h3>Pattern 1: Arithmetic (locals)</h3>
-  <pre><code>Source: a = b + c  (a=#1, b=#2, c=#3)
-S-code: get.2  get.3  add  put.1</code></pre>
-
-  <h3>Pattern 2: Arithmetic (globals)</h3>
-  <pre><code>Source: a = b + c  (globals)
-S-code: ld.b  ld.c  add  st.a</code></pre>
-
-  <h3>Pattern 3: if-then-else</h3>
-  <pre><code>Source: if (a == b) c = 1 else c = 2
-S-code: get.1  get.2  eq  jf.xx
-        lit.1  put.3  jmp.yy
-   :xx  lit.2  put.3
-   :yy</code></pre>
-
-  <h3>Pattern 4: Function call</h3>
-  <pre><code>Source: mysum(3, 4)
-S-code: lit.3  lit.4  call.mysum</code></pre>
-
-  <h3>Pattern 5: Recursive function</h3>
-  <pre><code>Source: sum(n,m) { if(n==m) return m; else return n+sum(n+1,m); }
-S-code:
-:sum    fun.1
-        get.1  get.2  eq  jf.L18
-        get.2  ret.3
-        jmp.L26
-:L18    get.1  get.1  lit.1  add  get.2
-        call.sum  add  ret.3
-:L26    ret.3</code></pre>
-
-  <h2>Patching Technique</h2>
-  <div class="warning">
-    <strong>Forward jumps:</strong> When emitting <code>jf</code>, you don't know the target yet. Protocol: (1) emit <code>jf.0</code> placeholder, (2) save <code>ads = CP-1</code>, (3) generate body, (4) <code>patch(ads, CP-ads)</code> to fill correct offset.
-  </div>
-
-  <h2>eval() Pseudocode</h2>
-  <pre><code>eval(e):
-    switch type(e):
-        PLUS:  eval(left); eval(right); out(ADD)
-        IF:    eval(cond); out(JF,0); ads=CP-1
-               eval(body); patch(ads, CP-ads)
-        CALL:  for arg in args: eval(arg)
-               out(CALL, func)</code></pre>
-
-  <div class="pareto">
-    <strong>Master these 5 patterns and you can generate S-code for anything on the exam.</strong> Every question is a composition: arithmetic uses Pattern 1/2, branching uses Pattern 3, functions use Pattern 4, recursion is Pattern 5.
-  </div>
-
-  <h2>Exam Checklist</h2>
-  <ul class="checklist">
-    <li><span class="check-box"></span><span class="check-text">Translate a=b+c to S-code for locals and globals</span></li>
-    <li><span class="check-box"></span><span class="check-text">Generate if-then-else with correct jf/jmp labels</span></li>
-    <li><span class="check-box"></span><span class="check-text">Apply patching: emit placeholder, save ads, generate body, patch</span></li>
-    <li><span class="check-box"></span><span class="check-text">Generate function calls (push args, call)</span></li>
-    <li><span class="check-box"></span><span class="check-text">Trace evaluation stack for S-code sequence</span></li>
-  </ul>
-
-  <div class="page-nav">
-    <a onclick="navigateTo(6)">&larr; Parse Trees</a>
-    <a onclick="navigateTo(8)">Next: Activation Records &rarr;</a>
-  </div>
-</div>
-
-<!-- PAGE 8: Activation Records -->
-<div id="page-8" class="page">
-  <h1>Activation Records & Procedure Linkage</h1>
-  <p class="page-subtitle">How function calls actually work at the machine level</p>
-
-  <h2>Memory Layout</h2>
-  <div class="diagram">+------------------+
-|    Code          |  fixed size, read-only
-+------------------+
-|  Static Data     |  globals, fixed size
-+------------------+
-|    Stack   |     |  grows DOWN (activation records)
-|            v     |
-|                  |
-|            ^     |
-|    Heap    |     |  grows UP (dynamic allocation)
-+------------------+</div>
-
-  <h2>AR Structure</h2>
-  <div class="diagram">+------------------------+
-| Return value           |
-+------------------------+
-| Actual parameters      |
-+------------------------+
-| Control link           |  -> caller's AR
-+------------------------+
-| Access link            |  -> lexically enclosing AR
-+------------------------+
-| Saved machine status   |  regs, return addr
-+------------------------+
-| Local data             |
-+------------------------+
-| Temporaries            |
-+------------------------+</div>
-
-  <h3>x86-64 Concrete Offsets</h3>
-  <table>
-    <thead><tr><th>Offset</th><th>Contents</th></tr></thead>
-    <tbody>
-      <tr><td><code>8n+8(%rbp)</code> to <code>16(%rbp)</code></td><td>Arguments (arg n to arg 1)</td></tr>
-      <tr><td><code>8(%rbp)</code></td><td>Return address</td></tr>
-      <tr><td><code>0(%rbp)</code></td><td>Old frame pointer (saved %rbp)</td></tr>
-      <tr><td><code>-8(%rbp)</code> to <code>-8m(%rsp)</code></td><td>Local variables</td></tr>
-    </tbody>
-  </table>
-
-  <h2>4 Phases of Procedure Linkage</h2>
-
-  <h3>Phase 1: Pre-call (CALLER)</h3>
-  <p>Allocate callee AR, store args, save return addr, save caller-save regs, set access link, jump to prolog.</p>
-
-  <h3>Phase 2: Prolog (CALLEE)</h3>
-  <p>Save old FP, set new FP, save callee-save regs, allocate locals, initialize.</p>
-
-  <h3>Phase 3: Epilog (CALLEE)</h3>
-  <p>Store return value, restore callee-save regs, restore caller FP, load return addr, jump back.</p>
-
-  <h3>Phase 4: Post-return (CALLER)</h3>
-  <p>Copy return value, free callee AR, restore caller-save regs, continue.</p>
-
-  <h2>Register Saving</h2>
-  <table>
-    <thead><tr><th>Type</th><th>Who saves</th><th>Why</th></tr></thead>
-    <tbody>
-      <tr><td><strong>Caller-save</strong></td><td>Caller (before call)</td><td>Caller knows which values are LIVE</td></tr>
-      <tr><td><strong>Callee-save</strong></td><td>Callee (in prolog)</td><td>Callee knows which regs it will use</td></tr>
-    </tbody>
-  </table>
-
-  <h2>Access Link vs. Control Link</h2>
-  <div class="insight">
-    <strong>Access link follows the SOURCE CODE nesting (lexical). Control link follows the CALL HISTORY (dynamic).</strong> They are the same only when calling a directly enclosing function.
-  </div>
-  <table>
-    <thead><tr><th></th><th>Control Link</th><th>Access Link</th></tr></thead>
-    <tbody>
-      <tr><td><strong>Points to</strong></td><td>Caller's AR</td><td>Lexically enclosing AR</td></tr>
-      <tr><td><strong>Chain</strong></td><td>Dynamic</td><td>Static</td></tr>
-      <tr><td><strong>Used for</strong></td><td>Return to caller</td><td>Access outer scope variables</td></tr>
-    </tbody>
-  </table>
-
-  <h2>Static Coordinates &lt;level, offset&gt;</h2>
-  <table>
-    <thead><tr><th>Situation</th><th>Method</th><th>Cost</th></tr></thead>
-    <tbody>
-      <tr><td>Same level</td><td>Direct offset from %rbp</td><td>1 access</td></tr>
-      <tr><td>1 level out</td><td>Follow 1 access link + offset</td><td>2 accesses</td></tr>
-      <tr><td>k levels out</td><td>Follow k access links + offset</td><td>k+1 accesses</td></tr>
-    </tbody>
-  </table>
-
-  <h2>Recursive fact(3) Example</h2>
-  <div class="diagram">+-------------------+
-| fact(3)  n=3      | control -> caller
-+-------------------+
-| fact(2)  n=2      | control -> fact(3)
-+-------------------+
-| fact(1)  n=1      | control -> fact(2)  (base case, returns 1)
-+-------------------+
-
-Unwind: fact(1)=1, fact(2)=2*1=2, fact(3)=3*2=6</div>
-
-  <div class="pareto">
-    <strong>Draw the AR, trace the 4 phases, know access vs control link.</strong> These three skills cover nearly every exam question on this topic.
-  </div>
-
-  <h2>Exam Checklist</h2>
-  <ul class="checklist">
-    <li><span class="check-box"></span><span class="check-text">Draw AR with all 7 fields</span></li>
-    <li><span class="check-box"></span><span class="check-text">Label x86-64 %rbp offsets</span></li>
-    <li><span class="check-box"></span><span class="check-text">List all 4 linkage phases and who does what</span></li>
-    <li><span class="check-box"></span><span class="check-text">Explain access link vs control link difference</span></li>
-    <li><span class="check-box"></span><span class="check-text">Trace fact(3) stack with 3 ARs</span></li>
-    <li><span class="check-box"></span><span class="check-text">Compute access chain for static coordinate</span></li>
-  </ul>
-
-  <div class="page-nav">
-    <a onclick="navigateTo(7)">&larr; Code Generation</a>
-    <a onclick="navigateTo(9)">Next: Garbage Collection &rarr;</a>
-  </div>
-</div>
-
-<!-- PAGE 9: Garbage Collection -->
-<div id="page-9" class="page">
-  <h1>Garbage Collection</h1>
-  <p class="page-subtitle">Automatic memory management -- when the runtime cleans up the heap</p>
-
-  <div class="insight">
-    <strong>Roots are in activation records.</strong> Follow pointers from roots = alive. Everything else = garbage.
-  </div>
-
-  <h2>Mark-and-Sweep: 4 Phases</h2>
-  <table>
-    <thead><tr><th>#</th><th>Phase</th><th>What Happens</th></tr></thead>
-    <tbody>
-      <tr><td><strong>1</strong></td><td><strong>Mark</strong></td><td>Walk all active ARs. Follow pointers to heap. Mark reached blocks as "alive" via header marker bit.</td></tr>
-      <tr><td><strong>2</strong></td><td><strong>Sweep & Copy</strong></td><td>Scan entire heap using block sizes in headers. Copy live blocks to temp space. Record old&rarr;new in <strong>address map</strong>.</td></tr>
-      <tr><td><strong>3</strong></td><td><strong>Free & Return</strong></td><td>Free entire original heap. Move live blocks back (compacted). Update address map.</td></tr>
-      <tr><td><strong>4</strong></td><td><strong>Update Addresses</strong></td><td>Walk all ARs again. Use address map to patch every pointer to new locations.</td></tr>
-    </tbody>
-  </table>
-
-  <p><strong>Advantages:</strong> Handles circular references. No overhead during normal execution.<br>
-  <strong>Disadvantages:</strong> Long stop-the-world pause. Unpredictable latency. Needs extra copy space.</p>
-
-  <h2>Reference Counting</h2>
-  <p>Each heap object has a <strong>counter</strong>. Compiler inserts code to increment on new reference, decrement when reference dies. Free when counter = 0.</p>
-  <p><strong>Advantages:</strong> Predictable runtime. Immediate reclamation. No scanning.<br>
-  <strong>Disadvantages:</strong> Expensive updates every assignment/scope change. Compiler must be absolutely correct. Difficult edge cases.</p>
-
-  <h2>Comparison</h2>
-  <table>
-    <thead><tr><th>Aspect</th><th>Mark-and-Sweep</th><th>Reference Counting</th></tr></thead>
-    <tbody>
-      <tr><td><strong>Circular refs</strong></td><td>Handles correctly</td><td>CANNOT handle</td></tr>
-      <tr><td><strong>Runtime overhead</strong></td><td>Low (batch)</td><td>High (every pointer update)</td></tr>
-      <tr><td><strong>Pause time</strong></td><td>Long, unpredictable</td><td>Short, predictable</td></tr>
-      <tr><td><strong>Correctness burden</strong></td><td>On GC runtime</td><td>On compiler</td></tr>
-      <tr><td><strong>Reclamation</strong></td><td>Delayed (batch)</td><td>Immediate</td></tr>
-      <tr><td><strong>Compaction</strong></td><td>Yes (copy phase)</td><td>No (leaves holes)</td></tr>
-    </tbody>
-  </table>
-
-  <h2>Generational GC</h2>
-  <p><strong>Key observation:</strong> "Memory that is new is more likely to be used and freed." Most objects die young.</p>
-  <table>
-    <thead><tr><th>Generation</th><th>Contains</th><th>Collected</th></tr></thead>
-    <tbody>
-      <tr><td><strong>Young (nursery)</strong></td><td>Newly allocated</td><td>Frequently (minor GC, fast)</td></tr>
-      <tr><td><strong>Old (tenured)</strong></td><td>Survived previous cycles</td><td>Rarely (major GC, slow)</td></tr>
-    </tbody>
-  </table>
-  <p>Objects promoted from young to old after surviving a GC cycle. Young gen is small = quick to collect. Dramatically reduces pause times.</p>
-
-  <div class="pareto">
-    <strong>3 things to know:</strong> (1) The 4 M&S phases by name and action. (2) RC trade-offs (no circular refs, immediate, but compiler burden). (3) Why generational helps (most die young, small young gen = fast minor GC).
-  </div>
-
-  <h2>Exam Checklist</h2>
-  <ul class="checklist">
-    <li><span class="check-box"></span><span class="check-text">Explain all 4 mark-and-sweep phases</span></li>
-    <li><span class="check-box"></span><span class="check-text">Explain reference counting mechanics</span></li>
-    <li><span class="check-box"></span><span class="check-text">State key trade-off: pause time vs overhead</span></li>
-    <li><span class="check-box"></span><span class="check-text">Explain why RC fails on circular references</span></li>
-    <li><span class="check-box"></span><span class="check-text">Describe generational GC optimization</span></li>
-    <li><span class="check-box"></span><span class="check-text">Define roots: pointer variables in active ARs</span></li>
-  </ul>
-
-  <div class="page-nav">
-    <a onclick="navigateTo(8)">&larr; Activation Records</a>
-    <a onclick="navigateTo(0)">Back to Overview</a>
-  </div>
-</div>
-
 </main>
 
 <script>
-// Navigation
+var pageCache = {};
+var currentPage = 0;
+
 function navigateTo(pageNum) {
-  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
-  document.getElementById('page-' + pageNum).classList.add('active');
+  currentPage = pageNum;
+  // Update sidebar
+  document.querySelectorAll('.nav-item').forEach(function(n) { n.classList.remove('active'); });
   document.querySelectorAll('.nav-item')[pageNum].classList.add('active');
   window.scrollTo(0, 0);
-  // Close mobile sidebar
   document.getElementById('sidebar').classList.remove('open');
+
+  var container = document.getElementById('page-container');
+
+  // Use cache if available
+  if (pageCache[pageNum]) {
+    container.innerHTML = pageCache[pageNum];
+    bindChecklists();
+    return;
+  }
+
+  // Fetch the page
+  container.innerHTML = '<p style="color:var(--text-muted);padding:48px;">Loading...</p>';
+  fetch('pages/page-' + pageNum + '.html')
+    .then(function(r) { return r.text(); })
+    .then(function(html) {
+      pageCache[pageNum] = html;
+      // Only render if still on this page
+      if (currentPage === pageNum) {
+        container.innerHTML = html;
+        bindChecklists();
+      }
+    })
+    .catch(function() {
+      container.innerHTML = '<p style="color:var(--red);padding:48px;">Failed to load page.</p>';
+    });
 }
 
 function toggleSidebar() {
   document.getElementById('sidebar').classList.toggle('open');
 }
 
-// Checklist interactivity + progress tracking
-document.addEventListener('click', function(e) {
-  var li = e.target.closest('.checklist li');
-  if (li) {
-    li.classList.toggle('checked');
-    updateProgress();
-  }
-});
+function bindChecklists() {
+  document.querySelectorAll('.checklist li').forEach(function(li) {
+    li.onclick = function() {
+      li.classList.toggle('checked');
+      updateProgress();
+    };
+  });
+  updateProgress();
+}
 
 function updateProgress() {
   var total = document.querySelectorAll('.checklist li').length;
@@ -1066,22 +138,17 @@ function updateProgress() {
 
 // Keyboard navigation
 document.addEventListener('keydown', function(e) {
-  if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
-    var current = document.querySelector('.nav-item.active');
-    var items = document.querySelectorAll('.nav-item');
-    var idx = Array.from(items).indexOf(current);
-    if (idx < items.length - 1) navigateTo(idx + 1);
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+  if (e.key === 'ArrowRight') {
+    if (currentPage < 9) navigateTo(currentPage + 1);
   }
-  if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
-    var current = document.querySelector('.nav-item.active');
-    var items = document.querySelectorAll('.nav-item');
-    var idx = Array.from(items).indexOf(current);
-    if (idx > 0) navigateTo(idx - 1);
+  if (e.key === 'ArrowLeft') {
+    if (currentPage > 0) navigateTo(currentPage - 1);
   }
 });
 
-// Init progress
-updateProgress();
+// Load first page
+navigateTo(0);
 </script>
 
 </body>
