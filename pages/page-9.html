@@ -1,0 +1,273 @@
+<h1>Garbage Collection</h1>
+<p class="page-subtitle">Automatic heap memory management: why manual free breaks down, how Mark-and-Sweep and Reference Counting work, and what Generational GC adds on top.</p>
+
+<h2>Why Garbage Collection Exists</h2>
+<p>Stack memory is clean: when a function returns, its activation record is popped and the memory is instantly reclaimed. Heap memory is different. You allocate it explicitly, it persists across function calls, and nothing automatically knows when you are done with it.</p>
+
+<p>The two options for reclaiming heap memory are:</p>
+<ul>
+  <li><strong>Manual free</strong> -- the programmer calls <code>free()</code>. Works in theory. In practice: double-free bugs crash programs, use-after-free bugs corrupt memory silently, and forgotten frees accumulate into leaks that eventually exhaust the heap.</li>
+  <li><strong>Garbage collection</strong> -- the language runtime tracks which heap objects are still reachable and reclaims the rest automatically. You pay a runtime cost in exchange for eliminating an entire class of bugs.</li>
+</ul>
+
+<div class="insight">
+  GC is not a performance feature. It is a correctness feature. The question is never "is GC faster than manual free?" -- in a microbenchmark, it is not. The question is "how much engineering time do you spend debugging memory bugs vs. paying a predictable GC cost?" Modern production systems (JVM, Go, Python, .NET) have answered that question decisively.
+</div>
+
+<p><strong>When does GC trigger?</strong> Most commonly when the allocator runs out of space and needs to reclaim memory before servicing the next allocation. Some implementations also run GC on a timer for more predictable latency.</p>
+
+<h2>Method 1: Mark and Sweep</h2>
+<p>Mark and Sweep is a batch algorithm. It runs infrequently, does a thorough scan of all reachable memory, and reclaims everything else in one pass. The key insight: instead of tracking every allocation at assignment time, it periodically asks "what is still alive right now?"</p>
+
+<h3>Root Identification</h3>
+<p>The algorithm needs a starting point. Those starting points are called <strong>roots</strong>.</p>
+<ul>
+  <li>Roots = all variables in active activation records on the runtime stack at the moment GC runs</li>
+  <li>Any heap block directly referenced by a root variable is alive</li>
+  <li>Any heap block reachable by following pointers from alive blocks is also alive (transitively)</li>
+  <li>Every heap block has a <strong>header</strong> containing its size and a mark bit -- the GC reads and writes these headers</li>
+</ul>
+
+<div class="pareto">
+  "Roots come from activation records" is the sentence your exam answer needs. The runtime stack is the only thing the GC can trust as a source of truth. Everything on the heap is reachable or dead relative to what the stack currently holds. If you cannot reach it by following pointers from the stack, it is garbage.
+</div>
+
+<h3>The 4-Phase Algorithm</h3>
+
+<div class="flow">
+  <span class="flow-step">Mark</span>
+  <span class="flow-arrow">&rarr;</span>
+  <span class="flow-step">Sweep &amp; Copy</span>
+  <span class="flow-arrow">&rarr;</span>
+  <span class="flow-step">Free &amp; Return</span>
+  <span class="flow-arrow">&rarr;</span>
+  <span class="flow-step">Update Addresses</span>
+</div>
+
+<table>
+  <thead>
+    <tr>
+      <th>Phase</th>
+      <th>What Happens</th>
+      <th>Key Data Structure</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>1. Mark</strong></td>
+      <td>Walk all activation records on the stack. For each pointer found, follow it to the heap block and set its mark bit to "alive." Recurse through all pointers inside that block. Anything unmarked at the end is unreachable.</td>
+      <td>Mark bit in each block's header</td>
+    </tr>
+    <tr>
+      <td><strong>2. Sweep &amp; Copy</strong></td>
+      <td>Scan the entire heap block by block (using the size field in each header to step forward). When a marked (alive) block is found, copy it to a separate temporary memory space. Record both the old address and the new address in an address map table.</td>
+      <td>Address map (old addr -&gt; new addr), temporary memory space</td>
+    </tr>
+    <tr>
+      <td><strong>3. Free &amp; Return</strong></td>
+      <td>All live data is safely in temporary memory. Free the entire original heap in one operation. Move the live blocks back from temporary memory into the now-empty heap. Update the address map to reflect the final heap positions.</td>
+      <td>Address map (updated)</td>
+    </tr>
+    <tr>
+      <td><strong>4. Update Addresses</strong></td>
+      <td>Walk all activation records again. For every pointer variable found, look up its old address in the address map and replace it with the new address. All live pointers now point to the correct compacted locations.</td>
+      <td>Address map (read-only), activation records (written)</td>
+    </tr>
+  </tbody>
+</table>
+
+<pre><code>-- Heap state before GC --
+[Block A, alive] -> [Block B, alive] -> [Block C, dead]
+[Block D, dead]  [Block E, alive]
+
+-- After Phase 1: Mark --
+Block A: marked    Block B: marked    Block C: (unmarked)
+Block D: (unmarked)   Block E: marked
+
+-- After Phase 2: Sweep & Copy --
+Temporary memory: [A'] [B'] [E']
+Address map: A->A', B->B', E->E'
+
+-- After Phase 3: Free & Return --
+Original heap freed. Live blocks moved back:
+Heap: [A''] [B''] [E'']   (compacted, no gaps)
+Address map updated: A->A'', B->B'', E->E''
+
+-- After Phase 4: Update Addresses --
+All stack pointers pointing to A, B, E now point to A'', B'', E''
+</code></pre>
+
+<div class="warning">
+  The pause problem is real. During all four phases, the program cannot run. The GC "stops the world." For a web server handling 10ms latency SLAs, a 200ms GC pause is a crisis. This is why Go's GC team spent years engineering concurrent marking to reduce stop-the-world pauses below 1ms. For an exam, know that pause time is the primary cost of Mark-and-Sweep.
+</div>
+
+<h2>Method 2: Reference Counting</h2>
+<p>Reference Counting takes the opposite approach: instead of batching the work, pay for memory management continuously, one pointer operation at a time.</p>
+
+<p>Every heap object gets a <strong>counter</strong> field (the reference count) alongside its data:</p>
+
+<pre><code>-- Object layout with reference counting --
+| ref_count | data ... |
+
+-- When a new reference is created --
+p = q;           /* compiler inserts: q->ref_count++ */
+
+-- When a reference dies (variable goes out of scope) --
+}                /* compiler inserts: p->ref_count-- */
+                 /* if p->ref_count == 0: free(p) */
+
+-- Example trace --
+Node* a = new_node();   /* a->ref_count = 1 */
+Node* b = a;            /* a->ref_count = 2 */
+b = NULL;               /* a->ref_count = 1 */
+a = NULL;               /* a->ref_count = 0  ->  free(a) */
+</code></pre>
+
+<p>The compiler is responsible for inserting all increment and decrement operations. Every assignment, every scope exit, every parameter pass that involves a pointer must trigger the correct counter adjustment.</p>
+
+<div class="insight">
+  Reference Counting moves the GC burden from the runtime (a separate GC process) to the compiler (inserting counter code at every pointer operation). The total work done is similar, but the distribution is completely different: no pauses, but constant overhead on every pointer write.
+</div>
+
+<h2>The Circular Reference Problem</h2>
+<p>Reference Counting has one fatal flaw that cannot be patched without adding a secondary mechanism.</p>
+
+<pre><code>-- Circular reference --
+Node* a = new_node();   /* a->ref_count = 1 */
+Node* b = new_node();   /* b->ref_count = 1 */
+
+a->next = b;            /* b->ref_count = 2 */
+b->next = a;            /* a->ref_count = 2 */
+
+/* Now drop the original references */
+a = NULL;               /* a_obj->ref_count = 1  (not 0!) */
+b = NULL;               /* b_obj->ref_count = 1  (not 0!) */
+
+/* Result: both objects are unreachable from any root,
+   but neither has ref_count == 0.
+   They will never be freed.  This is a memory leak. */
+</code></pre>
+
+<p>The two objects keep each other alive forever. No amount of incrementing and decrementing external references will ever bring the internal cycle to zero. Mark-and-Sweep has no such problem: if neither object is reachable from a root, neither gets marked, and both get swept.</p>
+
+<div class="warning">
+  Python uses Reference Counting as its primary GC but had to add a separate cycle detector (the <code>gc</code> module) specifically because of this problem. CPython's cycle detector runs Mark-and-Sweep periodically just to catch circular references that RC misses. If an interviewer asks "how does Python handle circular references," the answer is "it cheats -- it adds a backup Mark-and-Sweep."
+</div>
+
+<h2>Comparison: Mark-and-Sweep vs. Reference Counting</h2>
+
+<table>
+  <thead>
+    <tr>
+      <th>Aspect</th>
+      <th>Mark and Sweep</th>
+      <th>Reference Counting</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>Circular references</strong></td>
+      <td>Handled correctly -- cycles that are unreachable from roots are collected</td>
+      <td>Cannot handle -- cycles keep ref_count &gt; 0 forever, causing leaks</td>
+    </tr>
+    <tr>
+      <td><strong>Runtime overhead</strong></td>
+      <td>Low during normal execution -- no overhead per pointer operation</td>
+      <td>High -- every pointer assignment and scope exit touches a counter</td>
+    </tr>
+    <tr>
+      <td><strong>Pause time</strong></td>
+      <td>Long, unpredictable -- entire heap must be scanned when GC fires</td>
+      <td>None -- memory freed immediately when ref_count hits zero</td>
+    </tr>
+    <tr>
+      <td><strong>Memory reclamation</strong></td>
+      <td>Delayed -- unreachable memory accumulates until GC runs</td>
+      <td>Immediate -- object freed the instant last reference drops</td>
+    </tr>
+    <tr>
+      <td><strong>Correctness burden</strong></td>
+      <td>On the GC runtime implementation</td>
+      <td>On the compiler -- every pointer operation must be instrumented correctly</td>
+    </tr>
+    <tr>
+      <td><strong>Extra memory needed</strong></td>
+      <td>Yes -- temporary copy space during Sweep &amp; Copy phase</td>
+      <td>Minimal -- only one counter field per object</td>
+    </tr>
+    <tr>
+      <td><strong>Real-world users</strong></td>
+      <td>JVM, Go, Python (cycle detection backup)</td>
+      <td>Swift (ARC), Rust (Rc/Arc), Python (primary), Objective-C (ARC)</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2>Optimization: Generational GC</h2>
+<p>The core empirical observation behind Generational GC: <strong>most objects die young.</strong></p>
+
+<p>Think about a typical program. A loop creates thousands of temporary strings, intermediate results, and iterator objects every second. Most of these are dead by the next line of code. A handful of objects -- database connections, caches, configuration -- live for the entire program lifetime. The heap is not a uniform mix: it is overwhelmingly young, short-lived objects.</p>
+
+<p>Generational GC exploits this by dividing the heap into regions by age:</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>Generation</th>
+      <th>Contents</th>
+      <th>Collection Frequency</th>
+      <th>Size</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>Young (nursery)</strong></td>
+      <td>Newly allocated objects</td>
+      <td>Very frequently -- after every few MB of allocation</td>
+      <td>Small (fast to scan)</td>
+    </tr>
+    <tr>
+      <td><strong>Old (tenured)</strong></td>
+      <td>Objects that survived multiple young-generation collections</td>
+      <td>Rarely -- only when old generation fills up</td>
+      <td>Large (infrequent scans)</td>
+    </tr>
+  </tbody>
+</table>
+
+<p>The process:</p>
+<ol>
+  <li>New objects are allocated in the young generation</li>
+  <li>Young generation fills up quickly; GC runs on it frequently -- but it is small, so the pause is short</li>
+  <li>Objects that survive a young-generation collection are <strong>promoted</strong> to the old generation</li>
+  <li>Old generation fills up slowly; GC runs on it rarely -- infrequent long pauses become very infrequent</li>
+</ol>
+
+<div class="flow">
+  <span class="flow-step">New object allocated in Young gen</span>
+  <span class="flow-arrow">&rarr;</span>
+  <span class="flow-step">Young gen GC runs (frequent, fast)</span>
+  <span class="flow-arrow">&rarr;</span>
+  <span class="flow-step">Survivor promoted to Old gen</span>
+  <span class="flow-arrow">&rarr;</span>
+  <span class="flow-step">Old gen GC runs (rare, slow)</span>
+</div>
+
+<div class="pareto">
+  Generational GC does not change the correctness of Mark-and-Sweep. It changes the performance profile. By concentrating collection effort on the region most likely to contain garbage (young objects), it dramatically reduces average pause time without touching the fundamental algorithm. "Most objects die young" is the one empirical fact that makes this work -- if objects lived uniformly long, generational GC would offer no benefit.
+</div>
+
+<h2>Exam Checklist</h2>
+<ul class="checklist">
+  <li><span class="check-box"></span><span class="check-text">Can I explain the 4 phases of Mark-and-Sweep in order, with what each phase does and what data structure it uses?</span></li>
+  <li><span class="check-box"></span><span class="check-text">Can I explain where roots come from -- activation records on the runtime stack -- and why that is the correct starting point?</span></li>
+  <li><span class="check-box"></span><span class="check-text">Can I explain Reference Counting: increment on new reference, decrement on death, free at zero?</span></li>
+  <li><span class="check-box"></span><span class="check-text">Can I explain the circular reference problem with a concrete two-node example and state why RC cannot solve it?</span></li>
+  <li><span class="check-box"></span><span class="check-text">Can I state the key trade-off: Mark-and-Sweep has long batch pauses but handles cycles; Reference Counting has constant overhead but leaks cycles?</span></li>
+  <li><span class="check-box"></span><span class="check-text">Can I explain Generational GC: young/old split, promotion on survival, and why "most objects die young" makes it effective?</span></li>
+</ul>
+
+<div class="page-nav">
+  <a onclick="navigateTo(8)">&larr; Activation Records</a>
+  <a onclick="navigateTo(0)">Back to Overview &rarr;</a>
+</div>

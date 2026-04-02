@@ -1,0 +1,258 @@
+<h1>Context-Free Grammars &amp; Left Recursion</h1>
+<p class="page-subtitle">The grammar IS the language. Get this wrong and your parser loops forever.</p>
+
+<div class="pareto">
+  The three things exams always test: (1) identify left recursion, (2) eliminate it mechanically, (3) spot ambiguity and fix it with grammar hierarchy. Everything else here supports those three skills.
+</div>
+
+<h2>CFG: The Four Components</h2>
+
+<p>A Context-Free Grammar is a 4-tuple: <strong>terminals</strong>, <strong>non-terminals</strong>, <strong>productions</strong>, and a <strong>start symbol</strong>. Every structured language you have ever used is defined by one.</p>
+
+<table>
+  <thead>
+    <tr><th>Component</th><th>What it is</th><th>Examples</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><strong>Terminal</strong></td><td>Actual tokens from the scanner. Cannot be expanded.</td><td><code>id</code>, <code>+</code>, <code>(</code>, <code>42</code>, <code>if</code></td></tr>
+    <tr><td><strong>Non-terminal</strong></td><td>Abstract syntactic categories. Must be expanded by a production.</td><td><code>Expr</code>, <code>Term</code>, <code>Stmt</code>, <code>Factor</code></td></tr>
+    <tr><td><strong>Production</strong></td><td>A rewriting rule: one non-terminal expands to a sequence of symbols.</td><td><code>Expr -&gt; Expr + Term | Term</code></td></tr>
+    <tr><td><strong>Start symbol</strong></td><td>The top-level non-terminal. A complete parse must reduce to this.</td><td>Usually the first non-terminal listed</td></tr>
+  </tbody>
+</table>
+
+<pre><code>Expr   -> Expr + Term | Expr - Term | Term
+Term   -> Term * Factor | Term / Factor | Factor
+Factor -> id | num | ( Expr )</code></pre>
+
+<div class="insight">
+  Terminals come from the scanner. Non-terminals exist only in the grammar. A parse tree starts at the start symbol and has terminals as every leaf.
+</div>
+
+<h2>BNF vs EBNF Notation</h2>
+
+<p>BNF (Backus-Naur Form) is the original notation. EBNF adds two shorthand operators that map directly to control flow in parser code -- this is why EBNF is what you actually write parsers from.</p>
+
+<table>
+  <thead>
+    <tr><th>Notation</th><th>Symbol</th><th>Meaning</th><th>Compiles to</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>BNF / EBNF</td><td><code>::=</code> or <code>-&gt;</code></td><td>Production: "expands to"</td><td>Function definition</td></tr>
+    <tr><td>BNF / EBNF</td><td><code>|</code></td><td>Alternation: choose one branch</td><td><code>if / else if / else</code></td></tr>
+    <tr><td>EBNF only</td><td><code>{ ... }</code></td><td>Zero or more repetitions</td><td><code>while</code> loop</td></tr>
+    <tr><td>EBNF only</td><td><code>[ ... ]</code></td><td>Optional: zero or one occurrence</td><td><code>if</code> statement (no else)</td></tr>
+    <tr><td>BNF convention</td><td><code>&lt;E&gt;</code></td><td>Non-terminal (angle-bracket style)</td><td>--</td></tr>
+  </tbody>
+</table>
+
+<pre><code>BNF style:
+  &lt;Stmt&gt; ::= &lt;IfStmt&gt; | &lt;WhileStmt&gt; | &lt;Assign&gt;
+  &lt;IfStmt&gt; ::= if ( &lt;Expr&gt; ) &lt;Stmt&gt; | if ( &lt;Expr&gt; ) &lt;Stmt&gt; else &lt;Stmt&gt;
+
+EBNF style (more concise):
+  Stmt   = IfStmt | WhileStmt | Assign
+  IfStmt = if ( Expr ) Stmt [ else Stmt ]
+  While  = while ( Expr ) Stmt
+  Seq    = Stmt { ; Stmt }</code></pre>
+
+<div class="insight">
+  The <code>{ }</code> and <code>[ ]</code> in EBNF are not just syntactic sugar -- they eliminate left recursion from the grammar representation entirely. A <code>{ }</code> is a <code>while</code> loop. A <code>[ ]</code> is an <code>if</code> with no else. Write EBNF and your recursive descent parser writes itself.
+</div>
+
+<h2>Left Recursion: Why It Kills Top-Down Parsers</h2>
+
+<p>A grammar is <strong>directly left-recursive</strong> when a non-terminal appears as the first symbol of its own production's right-hand side.</p>
+
+<pre><code>ex = ex op term | term    &lt;-- left-recursive: ex starts by calling ex</code></pre>
+
+<p>Now trace what a recursive descent parser does:</p>
+
+<div class="flow">
+  <span class="flow-step">call parseExpr()</span>
+  <span class="flow-arrow">&rarr;</span>
+  <span class="flow-step">first alt: call parseExpr()</span>
+  <span class="flow-arrow">&rarr;</span>
+  <span class="flow-step">first alt: call parseExpr()</span>
+  <span class="flow-arrow">&rarr;</span>
+  <span class="flow-step">... infinite loop</span>
+</div>
+
+<div class="warning">
+  The parser never consumes a single token before recursing. It has no base case to stop. The call stack blows up. Left recursion = stack overflow = wrong grammar for top-down parsing. This is not a performance issue -- it is a correctness issue.
+</div>
+
+<h2>The Mechanical Fix: Direct Left Recursion Elimination</h2>
+
+<p>The pattern is always the same. Identify it, apply the formula.</p>
+
+<pre><code>GENERAL PATTERN:
+
+  Before: A = A a1 | A a2 | ... | b1 | b2 | ...
+  After:  A = (b1 | b2 | ...) { a1 | a2 | ... }
+
+SIMPLEST CASE:
+
+  Before: A = A x | y
+  After:  A = y { x }</code></pre>
+
+<p>The key insight: the b-alternatives (those that do NOT start with A) become the required prefix. The a-alternatives (those that DID start with A) become zero-or-more repetitions.</p>
+
+<h3>Full Example Walkthrough</h3>
+
+<pre><code>Original grammar (all three rules are left-recursive):
+
+  ex   = ex + term | ex - term | term
+  term = term * factor | factor
+  factor = ( ex ) | id | num
+
+After elimination:
+
+  ex   = term { (+ | -) term }
+  term = factor { * factor }
+  factor = ( ex ) | id | num</code></pre>
+
+<table>
+  <thead>
+    <tr><th>Before</th><th>After</th><th>Maps to code</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>ex = ex op term | term</code></td><td><code>ex = term {op term}</code></td><td><code>while</code> loop on <code>op</code></td></tr>
+    <tr><td><code>term = term * f | f</code></td><td><code>term = f {* f}</code></td><td><code>while</code> loop on <code>*</code></td></tr>
+    <tr><td><code>factor = ( ex ) | id | num</code></td><td>unchanged (no left recursion)</td><td><code>if/else if</code> on lookahead</td></tr>
+  </tbody>
+</table>
+
+<div class="insight">
+  The rewritten grammar generates the same language as the original. Elimination does NOT change what strings are in the language -- it only changes the grammar's structure to be safe for top-down parsing.
+</div>
+
+<h2>Indirect Left Recursion</h2>
+
+<p>Left recursion can be hidden: <code>A derives itself through a chain of other non-terminals.</code></p>
+
+<pre><code>Direct:   A -&gt; A alpha | beta          (obvious)
+
+Indirect: A -&gt; B c
+          B -&gt; A d
+          A =&gt; B c =&gt; A d c            (A derives A through B)</code></pre>
+
+<p>The general notation: <code>A =&gt;+ A Y</code> means A derives something starting with A in one or more steps.</p>
+
+<div class="warning">
+  The full algorithm for indirect left recursion (Paull's algorithm) involves substituting productions in a specific ordering. However, as noted in this course: indirect left recursion essentially never appears in real programming language grammars. For this exam, mastering direct left recursion removal is sufficient. If you see it on a problem, the fix is still: find the cycle, substitute to make it direct, then apply the standard formula.
+</div>
+
+<h2>Ambiguous Grammars</h2>
+
+<p>A grammar is <strong>ambiguous</strong> if there exists at least one string with two different parse trees. Two parse trees = two different meanings = the language is not well-defined.</p>
+
+<h3>Example 1: Expression Ambiguity</h3>
+
+<pre><code>Ambiguous grammar:
+  E -&gt; E + E | E * E | id
+
+String: id + id * id
+
+Parse tree 1 (+ at root):         Parse tree 2 (* at root):
+        +                                  *
+       / \                                / \
+      id  *                              +   id
+         / \                            / \
+        id  id                         id  id
+
+These give different values: (a + b) * c  vs  a + (b * c)</code></pre>
+
+<h3>Example 2: The Dangling Else</h3>
+
+<pre><code>Grammar:
+  Stmt -&gt; if ( Expr ) Stmt
+        | if ( Expr ) Stmt else Stmt
+        | other
+
+String: if (a) if (b) s1 else s2
+
+Two parses:
+  1. else belongs to inner if:  if (a) { if (b) s1 else s2 }
+  2. else belongs to outer if:  if (a) { if (b) s1 } else s2</code></pre>
+
+<p>Most languages resolve dangling else with the "match to nearest unmatched if" rule, implemented by splitting into two non-terminals:</p>
+
+<pre><code>MatchedStmt   = if ( Expr ) MatchedStmt else MatchedStmt | other
+UnmatchedStmt = if ( Expr ) Stmt
+              | if ( Expr ) MatchedStmt else UnmatchedStmt
+Stmt          = MatchedStmt | UnmatchedStmt</code></pre>
+
+<h3>Resolving Ambiguity: The Grammar Hierarchy Pattern</h3>
+
+<table>
+  <thead>
+    <tr><th>Problem</th><th>Root Cause</th><th>Fix</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>Precedence</td><td>Grammar has no notion of which op binds tighter</td><td>Put higher-precedence ops deeper in the grammar (further from start symbol)</td></tr>
+    <tr><td>Associativity</td><td>Grammar allows grouping from either direction</td><td>Left-assoc: use <code>{ }</code> in EBNF. Right-assoc: use right recursion (<code>A -&gt; B x A</code>)</td></tr>
+    <tr><td>Dangling else</td><td>One else can attach to multiple ifs</td><td>Split grammar into MatchedStmt / UnmatchedStmt</td></tr>
+  </tbody>
+</table>
+
+<pre><code>Unambiguous expression grammar (by hierarchy):
+
+  expr   = term { (+ | -) term }       &lt;-- lowest precedence, top level
+  term   = factor { (* | /) factor }   &lt;-- higher precedence
+  factor = base { ^ base }             &lt;-- even higher (exponentiation)
+  base   = id | num | ( expr )         &lt;-- highest: atoms and grouping
+
+Rule: lower precedence op = higher in grammar = further from leaves.</code></pre>
+
+<h2>Derivations: Leftmost vs Rightmost</h2>
+
+<p>A <strong>derivation</strong> is a sequence of rewriting steps from the start symbol to a terminal string. At each step you replace one non-terminal using one of its productions.</p>
+
+<table>
+  <thead>
+    <tr><th>Type</th><th>Which non-terminal to expand</th><th>Used by</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><strong>Leftmost derivation</strong></td><td>Always expand the leftmost non-terminal in the current sentential form</td><td>Top-down parsers (LL)</td></tr>
+    <tr><td><strong>Rightmost derivation</strong></td><td>Always expand the rightmost non-terminal in the current sentential form</td><td>Bottom-up parsers (LR) -- in reverse</td></tr>
+  </tbody>
+</table>
+
+<pre><code>Grammar:  E -&gt; E + T | T,  T -&gt; T * F | F,  F -&gt; id
+
+Input: id + id * id
+
+Leftmost derivation:
+  E
+  =&gt; E + T           (expand E, leftmost)
+  =&gt; T + T           (expand E, leftmost)
+  =&gt; F + T           (expand T, leftmost)
+  =&gt; id + T          (expand F, leftmost)
+  =&gt; id + T * F      (expand T, leftmost)
+  =&gt; id + F * F      (expand T, leftmost)
+  =&gt; id + id * F     (expand F, leftmost)
+  =&gt; id + id * id    (expand F, leftmost)</code></pre>
+
+<div class="insight">
+  For an unambiguous grammar, leftmost and rightmost derivations produce the same parse tree -- they just build it in different orders. For an ambiguous grammar, the same string can have two different leftmost derivations, which is exactly how you prove ambiguity.
+</div>
+
+<h2>Exam Checklist</h2>
+<ul class="checklist">
+  <li><span class="check-box"></span><span class="check-text">Name the four components of a CFG: terminals, non-terminals, productions, start symbol</span></li>
+  <li><span class="check-box"></span><span class="check-text">Convert between BNF and EBNF -- know that { } = while loop and [ ] = if statement</span></li>
+  <li><span class="check-box"></span><span class="check-text">Identify direct left recursion in any grammar rule</span></li>
+  <li><span class="check-box"></span><span class="check-text">Apply the elimination formula: A = A x | y becomes A = y { x }</span></li>
+  <li><span class="check-box"></span><span class="check-text">Explain why left recursion causes infinite loops in recursive descent</span></li>
+  <li><span class="check-box"></span><span class="check-text">Recognize indirect left recursion (A derives A through other non-terminals)</span></li>
+  <li><span class="check-box"></span><span class="check-text">Prove ambiguity by drawing two distinct parse trees for one string</span></li>
+  <li><span class="check-box"></span><span class="check-text">Resolve expression ambiguity using grammar hierarchy for precedence and associativity</span></li>
+  <li><span class="check-box"></span><span class="check-text">Explain the dangling else problem and its grammar-level fix</span></li>
+  <li><span class="check-box"></span><span class="check-text">Perform a leftmost derivation step-by-step and identify which parser type uses it</span></li>
+</ul>
+
+<div class="page-nav">
+  <a onclick="navigateTo(2)">&larr; Scanner</a>
+  <a onclick="navigateTo(4)">FIRST &amp; FOLLOW &rarr;</a>
+</div>

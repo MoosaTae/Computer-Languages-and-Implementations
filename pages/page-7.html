@@ -1,0 +1,434 @@
+<h1>Code Generation &amp; S-Code</h1>
+<p class="page-subtitle">The compiler is an interpreter that writes instructions instead of running them.</p>
+
+<div class="pareto">
+  Master these five patterns and you can generate S-code for any program on the exam. Everything else is variation on these themes: arithmetic, globals, if-else with patching, function calls, and recursion.
+</div>
+
+<h2>The Pipeline</h2>
+
+<div class="flow">
+  <span class="flow-step">Source Code</span>
+  <span class="flow-arrow">&rarr;</span>
+  <span class="flow-step">Parse Tree</span>
+  <span class="flow-arrow">&rarr;</span>
+  <span class="flow-step">Code Generator</span>
+  <span class="flow-arrow">&rarr;</span>
+  <span class="flow-step">S-Code (bytecode)</span>
+  <span class="flow-arrow">&rarr;</span>
+  <span class="flow-step">S-Machine executes</span>
+</div>
+
+<h2>S-Code Instruction Format</h2>
+
+<p>Every S-code instruction is a fixed-width 32-bit word, split into two fields:</p>
+
+<pre><code>[ argument: 24 bits | opcode: 8 bits ]
+  ^-- numeric arg    ^-- what to do</code></pre>
+
+<div class="insight">
+  8 bits for opcode = 256 possible instructions. 24 bits for argument = values up to 16 million. A single word encodes both operation and operand. No variable-length encoding, no register fields -- just opcode + one inline argument.
+</div>
+
+<p>S-code is a <strong>zero-address</strong> (stack) machine. There are no register operands in instructions. All computation goes through the <strong>evaluation stack</strong>. Two runtime data structures matter:</p>
+
+<ul>
+  <li><strong>Evaluation stack</strong> (global): operands are pushed, operations pop and push results</li>
+  <li><strong>Activation record</strong> (per call): local variables, return address, saved AR pointer</li>
+</ul>
+
+<h2>S-Code Instruction Set</h2>
+
+<h3>Data Movement</h3>
+
+<table>
+  <thead>
+    <tr>
+      <th>Instruction</th>
+      <th>Action</th>
+      <th>Use When</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>get.N</code></td>
+      <td>Push local variable #N onto stack</td>
+      <td>Reading a local variable</td>
+    </tr>
+    <tr>
+      <td><code>put.N</code></td>
+      <td>Pop stack into local variable #N</td>
+      <td>Assigning to a local variable</td>
+    </tr>
+    <tr>
+      <td><code>ld.x</code></td>
+      <td>Push global variable x onto stack</td>
+      <td>Reading a global variable</td>
+    </tr>
+    <tr>
+      <td><code>st.x</code></td>
+      <td>Pop stack into global variable x</td>
+      <td>Assigning to a global variable</td>
+    </tr>
+    <tr>
+      <td><code>lit.N</code></td>
+      <td>Push literal constant N onto stack</td>
+      <td>Using a numeric constant</td>
+    </tr>
+    <tr>
+      <td><code>ldx</code></td>
+      <td>Load indexed (array read)</td>
+      <td>Array access</td>
+    </tr>
+    <tr>
+      <td><code>stx</code></td>
+      <td>Store indexed (array write)</td>
+      <td>Array assignment</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3>Arithmetic, Logic, and Comparison</h3>
+
+<table>
+  <thead>
+    <tr>
+      <th>Category</th>
+      <th>Instructions</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>Arithmetic</strong></td>
+      <td><code>add</code>, <code>sub</code>, <code>mul</code>, <code>div</code>, <code>mod</code></td>
+    </tr>
+    <tr>
+      <td><strong>Bitwise / Logic</strong></td>
+      <td><code>band</code>, <code>bor</code>, <code>bxor</code>, <code>shl</code>, <code>shr</code>, <code>not</code></td>
+    </tr>
+    <tr>
+      <td><strong>Comparison</strong></td>
+      <td><code>eq</code>, <code>ne</code>, <code>lt</code>, <code>le</code>, <code>gt</code>, <code>ge</code></td>
+    </tr>
+    <tr>
+      <td><strong>Increment / Decrement</strong></td>
+      <td><code>inc</code>, <code>dec</code></td>
+    </tr>
+  </tbody>
+</table>
+
+<p>All binary operations follow the same contract: <strong>pop 2, push 1</strong>. The left operand must be pushed first, the right operand second.</p>
+
+<h3>Control Flow</h3>
+
+<table>
+  <thead>
+    <tr>
+      <th>Instruction</th>
+      <th>Action</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>jf.L</code></td>
+      <td>Pop stack; if false (0), jump to label L</td>
+    </tr>
+    <tr>
+      <td><code>jt.L</code></td>
+      <td>Pop stack; if true (non-zero), jump to label L</td>
+    </tr>
+    <tr>
+      <td><code>jmp.L</code></td>
+      <td>Unconditional jump to label L</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3>Function Support</h3>
+
+<table>
+  <thead>
+    <tr>
+      <th>Instruction</th>
+      <th>Action</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>fun.x</code></td>
+      <td>Function header -- allocate x local variable slots</td>
+    </tr>
+    <tr>
+      <td><code>call.f</code></td>
+      <td>Call function f (arguments already pushed onto stack)</td>
+    </tr>
+    <tr>
+      <td><code>ret.y</code></td>
+      <td>Return from function (y encodes cleanup: arg count + 1)</td>
+    </tr>
+    <tr>
+      <td><code>sys.N</code></td>
+      <td>System call (e.g., <code>sys.1</code> = print top of stack)</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2>eval() vs codegen(): The Core Duality</h2>
+
+<div class="insight">
+  An interpreter and a compiler walk the same parse tree with the same structure. The interpreter <strong>executes</strong> each node. The compiler <strong>emits instructions</strong> for each node. Same recursion, different action at the leaf.
+</div>
+
+<table>
+  <thead>
+    <tr>
+      <th>Tree Node</th>
+      <th>Interpreter eval()</th>
+      <th>Compiler codegen()</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Literal 5</td>
+      <td>Return the value 5</td>
+      <td>Emit <code>lit.5</code></td>
+    </tr>
+    <tr>
+      <td>Variable a</td>
+      <td>Look up a in environment, return value</td>
+      <td>Emit <code>get.N</code> or <code>ld.a</code></td>
+    </tr>
+    <tr>
+      <td>a + b</td>
+      <td>eval(a) + eval(b), return sum</td>
+      <td>codegen(a); codegen(b); emit <code>add</code></td>
+    </tr>
+    <tr>
+      <td>if (c) t else e</td>
+      <td>if eval(c) then eval(t) else eval(e)</td>
+      <td>codegen(c); emit <code>jf</code>; codegen(t); emit <code>jmp</code>; codegen(e)</td>
+    </tr>
+  </tbody>
+</table>
+
+<p>Here is the core code generation loop in pseudocode:</p>
+
+<pre><code>eval(e):
+  if e == nil: stop
+  if isatom(e): do_atom(e)          -- emit lit or get/ld
+
+  a = head(e)                        -- operator
+  b = tail(e)                        -- operands
+
+  switch typeof(a):
+    PLUS:
+      eval(arg1(b))                  -- generate code for left
+      eval(arg2(b))                  -- generate code for right
+      out(ADD)                       -- emit the add instruction
+
+    IF:
+      eval(arg1(b))                  -- generate code for condition
+      out(JF, 0)                     -- emit jf with placeholder target
+      patch_addr = CP - 1            -- remember where to patch
+      eval(arg2(b))                  -- generate code for then-branch
+      patch(patch_addr, CP - patch_addr)  -- fill in correct offset</code></pre>
+
+<h2>The Patching Technique for Forward Jumps</h2>
+
+<p>When emitting a conditional jump (<code>jf</code>), the compiler does not yet know where to jump -- the target is code that has not been generated yet. The solution is a two-pass approach done inline:</p>
+
+<div class="flow">
+  <span class="flow-step">Emit <code>jf.0</code> (placeholder)</span>
+  <span class="flow-arrow">&rarr;</span>
+  <span class="flow-step">Save address (CP-1)</span>
+  <span class="flow-arrow">&rarr;</span>
+  <span class="flow-step">Generate body code</span>
+  <span class="flow-arrow">&rarr;</span>
+  <span class="flow-step">Patch saved address with real target (CP)</span>
+</div>
+
+<div class="warning">
+  Forgetting to emit the <code>jmp</code> at the end of the then-branch is the most common exam mistake. Without it, control falls through into the else-branch even when the condition was true. Every if-else needs two jumps: one <code>jf</code> and one <code>jmp</code>, each patched separately.
+</div>
+
+<h2>The Five Code Generation Patterns</h2>
+
+<h3>Pattern 1: Arithmetic with Local Variables</h3>
+
+<p>Local variables are accessed by slot number within the current activation record using <code>get</code> (read) and <code>put</code> (write).</p>
+
+<p>Source: <code>a = b + c</code> with locals a=#1, b=#2, c=#3</p>
+
+<pre><code>get.2       -- push b onto stack
+get.3       -- push c onto stack
+add         -- pop b and c, push (b + c)
+put.1       -- pop result, store into a</code></pre>
+
+<p>Stack trace:</p>
+
+<pre><code>After get.2:  [ b ]
+After get.3:  [ b | c ]
+After add:    [ b+c ]
+After put.1:  [ ]        -- a now holds b+c</code></pre>
+
+<h3>Pattern 2: Arithmetic with Global Variables</h3>
+
+<p>Global variables are accessed by name using <code>ld</code> (read) and <code>st</code> (write). The pattern is identical to locals -- only the instruction names differ.</p>
+
+<p>Source: <code>a = b + c</code> with globals a, b, c</p>
+
+<pre><code>ld.b        -- push global b
+ld.c        -- push global c
+add         -- pop b and c, push (b + c)
+st.a        -- pop result, store into global a</code></pre>
+
+<div class="insight">
+  The pattern is symmetric: read both operands, apply the operator, write the result. Whether local or global changes only the load/store instruction, not the structure.
+</div>
+
+<h3>Pattern 3: If-Else with Patching</h3>
+
+<p>Source: <code>if (a == b) c = 1; else c = 2;</code> with locals a=#1, b=#2, c=#3</p>
+
+<pre><code>get.1       -- push a
+get.2       -- push b
+eq          -- pop a and b, push 1 if equal else 0
+jf.xx       -- if false (a != b), jump to else-branch
+lit.1       -- then-branch: push 1
+put.3       -- c = 1
+jmp.yy      -- skip over else-branch
+:xx         -- else label (patched target of jf)
+lit.2       -- else-branch: push 2
+put.3       -- c = 2
+:yy         -- end label (patched target of jmp)</code></pre>
+
+<p>During code generation, <code>xx</code> and <code>yy</code> are initially 0. After generating each branch, the compiler patches them with the actual code pointer values.</p>
+
+<h3>Pattern 4: Function Definition and Call</h3>
+
+<p>Arguments are pushed onto the stack <strong>before</strong> the call. The callee accesses them as local variables starting at slot #1.</p>
+
+<p>Source:</p>
+<pre><code>mysum(a, b) { return a + b; }
+main() { mysum(3, 4); }</code></pre>
+
+<p>S-code:</p>
+<pre><code>:mysum
+    fun.x       -- allocate local variable slots (x = frame size)
+    get.1       -- push parameter a (slot 1)
+    get.2       -- push parameter b (slot 2)
+    add         -- a + b
+    ret.y       -- return (result stays on stack for caller)
+
+:main
+    fun.x       -- main's frame
+    lit.3       -- push first argument
+    lit.4       -- push second argument
+    call.mysum  -- call (args already on stack before call)
+    ret.y       -- return from main</code></pre>
+
+<div class="warning">
+  Arguments are pushed in order (first arg pushed first) BEFORE the <code>call</code>. Inside the function, the first argument is local slot #1. Do not emit <code>call</code> before pushing all arguments.
+</div>
+
+<h3>Pattern 5: Recursion</h3>
+
+<p>Recursion requires no special mechanism -- the call instruction works the same for self-calls. A new activation record is created for each call. The key challenge is tracking which local slot is which parameter.</p>
+
+<p>Source:</p>
+<pre><code>sum(n, m) {
+    if (n == m) return m;
+    else return n + sum(n+1, m);
+}
+main() { print(sum(1, 10)); }</code></pre>
+
+<p>S-code (parameter mapping: n=#2, m=#1 -- check your compiler's convention):</p>
+
+<pre><code>:main
+    fun.1
+    lit.1
+    lit.10
+    call.sum
+    sys.1       -- print result
+    ret.1
+
+:sum
+    fun.1
+    get.2       -- push n
+    get.1       -- push m
+    eq          -- n == m?
+    jf.L18      -- if false, jump to else
+    get.1       -- base case: push m
+    ret.3       -- return m
+    jmp.L26     -- (dead code after return, but emit for structure)
+:L18
+    get.2       -- push n  (for the outer addition)
+    get.2       -- push n  (for the n+1 argument to recursive call)
+    lit.1
+    add         -- n + 1
+    get.1       -- push m
+    call.sum    -- sum(n+1, m)
+    add         -- n + sum(n+1, m)
+    ret.3       -- return result
+:L26
+    ret.3</code></pre>
+
+<div class="insight">
+  Notice that <code>n</code> is pushed twice before the recursive call: once to hold its value for the outer <code>add</code>, and once to compute <code>n+1</code>. The stack is your only scratchpad. If you need a value after a call, push a copy before the call.
+</div>
+
+<h2>Pattern Summary</h2>
+
+<table>
+  <thead>
+    <tr>
+      <th>Pattern</th>
+      <th>Key Instructions</th>
+      <th>Critical Rule</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Arithmetic (local)</td>
+      <td><code>get.N</code>, <code>put.N</code>, op</td>
+      <td>Push both operands before the op</td>
+    </tr>
+    <tr>
+      <td>Arithmetic (global)</td>
+      <td><code>ld.x</code>, <code>st.x</code>, op</td>
+      <td>Same structure, different load/store</td>
+    </tr>
+    <tr>
+      <td>If-else</td>
+      <td><code>jf</code>, <code>jmp</code>, patch</td>
+      <td>Two jumps, two patches; don't forget <code>jmp</code></td>
+    </tr>
+    <tr>
+      <td>Function call</td>
+      <td><code>lit</code>/<code>get</code>, <code>call.f</code>, <code>ret</code></td>
+      <td>Push all args before <code>call</code></td>
+    </tr>
+    <tr>
+      <td>Recursion</td>
+      <td>Same as call, plus <code>jf</code> for base case</td>
+      <td>Push extra copies if value needed after recursive call</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2>Exam Checklist</h2>
+
+<ul class="checklist">
+  <li><span class="check-box"></span><span class="check-text">I can translate <code>a = b + c</code> to S-code for both local (<code>get</code>/<code>put</code>) and global (<code>ld</code>/<code>st</code>) variables.</span></li>
+  <li><span class="check-box"></span><span class="check-text">I can generate S-code for if-then-else with correct <code>jf</code>, <code>jmp</code>, and two patched labels.</span></li>
+  <li><span class="check-box"></span><span class="check-text">I can generate S-code for a function call (push args first, then <code>call.f</code>).</span></li>
+  <li><span class="check-box"></span><span class="check-text">I can generate S-code for a recursive function, handling the base case and the self-call separately.</span></li>
+  <li><span class="check-box"></span><span class="check-text">I understand the patching technique: emit placeholder, save address, generate body, overwrite placeholder with real target.</span></li>
+  <li><span class="check-box"></span><span class="check-text">I can trace the evaluation stack state step-by-step through a sequence of S-code instructions.</span></li>
+  <li><span class="check-box"></span><span class="check-text">I understand that codegen() and eval() walk the same tree -- they differ only in what they do at each node.</span></li>
+</ul>
+
+<div class="page-nav">
+  <a onclick="navigateTo(6)">&larr; Parse Trees</a>
+  <a onclick="navigateTo(8)">Activation Records &rarr;</a>
+</div>

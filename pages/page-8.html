@@ -1,0 +1,442 @@
+<h1>Activation Records &amp; Procedure Linkage</h1>
+<p class="page-subtitle">How the runtime manages function calls, local variables, and the contract between caller and callee.</p>
+
+<div class="pareto">
+  Every function call in any compiled language — C, Java, Pascal, Go — relies on the same fundamental mechanism: an activation record on a stack, managed by a strict 4-phase protocol. Master this and you understand how ALL procedure calls work at the machine level.
+</div>
+
+<h2>What Is an Activation Record?</h2>
+
+<p>
+  An <strong>activation record</strong> (AR), also called a <strong>stack frame</strong>, is a contiguous block of memory allocated each time a function is called. It contains everything needed to execute that invocation and return cleanly to the caller: arguments, local variables, saved registers, and the bookkeeping links that hold the call chain together.
+</p>
+
+<div class="insight">
+  One activation record per live call, not per function definition. If <code>fact</code> calls itself 3 times, there are 3 ARs on the stack simultaneously — each with its own copy of <code>n</code>.
+</div>
+
+<h3>AR Structure (Top to Bottom)</h3>
+
+<pre><code>+---------------------------+  &lt;-- high address (caller's territory)
+|  Return value             |  result slot — caller reads this after return
++---------------------------+
+|  Actual parameters        |  arguments passed by caller
++---------------------------+
+|  Control link             |  pointer to caller's AR (dynamic chain)
++---------------------------+
+|  Access link              |  pointer to lexically enclosing AR (static chain)
++---------------------------+
+|  Saved machine status     |  return address, saved registers
++---------------------------+
+|  Local variables          |  this function's locals
++---------------------------+
+|  Temporaries              |  intermediate expression values
++---------------------------+  &lt;-- low address (stack grows down)</code></pre>
+
+<h2>x86-64 Stack Frame Layout</h2>
+
+<p>
+  On x86-64, two registers anchor every frame. <code>%rbp</code> (frame pointer) is a fixed reference — it does not move while the function runs. <code>%rsp</code> (stack pointer) marks the current top of the stack and shifts as data is pushed or popped.
+</p>
+
+<pre><code>[Higher addresses]
+  ...caller's frame...
+  ----------------------------------------
+  arg n          [8n+8(%rbp)]   &lt;-- nth argument
+  ...
+  arg 2          [16(%rbp)]
+  arg 1          [8(%rbp)]      &lt;-- first argument  (NOTE: some ABIs use registers)
+  return address [8(%rbp)]      &lt;-- pushed by CALL instruction
+  saved %rbp     [0(%rbp)]      &lt;-- old frame pointer stored here  &lt;-- %rbp points here
+  ----------------------------------------
+  local 1        [-8(%rbp)]
+  local 2        [-16(%rbp)]
+  ...
+  local m        [-8m(%rbp)]    &lt;-- %rsp points here (or lower)
+[Lower addresses]</code></pre>
+
+<table>
+  <thead>
+    <tr>
+      <th>Address</th>
+      <th>Contents</th>
+      <th>Who owns it</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>8n+8(%rbp) ... 16(%rbp)</code></td>
+      <td>Actual arguments (arg n down to arg 1)</td>
+      <td>Placed by caller before call</td>
+    </tr>
+    <tr>
+      <td><code>8(%rbp)</code></td>
+      <td>Return address (pushed by CALL)</td>
+      <td>CPU / caller</td>
+    </tr>
+    <tr>
+      <td><code>0(%rbp)</code></td>
+      <td>Saved old %rbp (caller's frame pointer)</td>
+      <td>Callee saves in prolog</td>
+    </tr>
+    <tr>
+      <td><code>-8(%rbp) ... -8m(%rbp)</code></td>
+      <td>Local variables</td>
+      <td>Callee allocates in prolog</td>
+    </tr>
+  </tbody>
+</table>
+
+<div class="warning">
+  The modern x86-64 System V ABI passes the first 6 integer arguments in registers (<code>%rdi, %rsi, %rdx, %rcx, %r8, %r9</code>), not on the stack. Only arguments beyond the 6th spill to the stack. Know which convention your exam uses — the conceptual layout above is what matters for understanding the structure.
+</div>
+
+<h2>The 4-Phase Procedure Linkage Protocol</h2>
+
+<p>
+  Every function call is a cooperative handoff. Caller and callee each have defined responsibilities split across four phases. Violate the protocol and the stack corrupts.
+</p>
+
+<div class="flow">
+  <span class="flow-step">Pre-call (Caller)</span>
+  <span class="flow-arrow">&rarr;</span>
+  <span class="flow-step">Prolog (Callee)</span>
+  <span class="flow-arrow">&rarr;</span>
+  <span class="flow-step">Epilog (Callee)</span>
+  <span class="flow-arrow">&rarr;</span>
+  <span class="flow-step">Post-return (Caller)</span>
+</div>
+
+<h3>Phase 1: Pre-call (done by CALLER)</h3>
+<table>
+  <thead>
+    <tr><th>Step</th><th>Purpose</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>Allocate space for callee's AR</td><td>Make room on the stack for the frame</td></tr>
+    <tr><td>Store arguments in parameter section</td><td>Pass values the callee will read</td></tr>
+    <tr><td>Save return address</td><td>CALL instruction pushes %rip automatically</td></tr>
+    <tr><td>Save caller-save registers</td><td>Preserve live values that callee may overwrite</td></tr>
+    <tr><td>Jump to callee's prolog</td><td>Transfer control (CALL instruction)</td></tr>
+  </tbody>
+</table>
+
+<h3>Phase 2: Prolog (done by CALLEE)</h3>
+<table>
+  <thead>
+    <tr><th>Step</th><th>Purpose</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>Save old frame pointer (<code>push %rbp</code>)</td><td>Remember caller's frame reference</td></tr>
+    <tr><td>Set new frame pointer (<code>mov %rsp, %rbp</code>)</td><td>Establish stable reference for this frame</td></tr>
+    <tr><td>Save callee-save registers</td><td>Preserve registers this function will overwrite</td></tr>
+    <tr><td>Allocate locals (<code>sub $N, %rsp</code>)</td><td>Extend the AR for local variables and temporaries</td></tr>
+  </tbody>
+</table>
+
+<h3>Phase 3: Epilog (done by CALLEE)</h3>
+<table>
+  <thead>
+    <tr><th>Step</th><th>Purpose</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>Store return value (into <code>%rax</code>)</td><td>Put result where caller expects it</td></tr>
+    <tr><td>Restore callee-save registers</td><td>Undo what prolog saved</td></tr>
+    <tr><td>Restore caller's frame pointer (<code>pop %rbp</code>)</td><td>Point %rbp back to caller's frame</td></tr>
+    <tr><td>RET instruction</td><td>Pop return address and jump back to caller</td></tr>
+  </tbody>
+</table>
+
+<h3>Phase 4: Post-return (done by CALLER)</h3>
+<table>
+  <thead>
+    <tr><th>Step</th><th>Purpose</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>Copy return value from <code>%rax</code></td><td>Get the result into the right location</td></tr>
+    <tr><td>Free callee's AR (<code>add $N, %rsp</code>)</td><td>Reclaim stack space</td></tr>
+    <tr><td>Restore caller-save registers</td><td>Recover saved values</td></tr>
+    <tr><td>Continue execution</td><td>Resume after the call site</td></tr>
+  </tbody>
+</table>
+
+<h3>Register Saving Convention</h3>
+<table>
+  <thead>
+    <tr><th>Category</th><th>Who saves</th><th>Rationale</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Caller-save registers</td>
+      <td>Caller (before call)</td>
+      <td>Only the caller knows which values are live across the call</td>
+    </tr>
+    <tr>
+      <td>Callee-save registers</td>
+      <td>Callee (in prolog)</td>
+      <td>Callee knows which registers it will actually use</td>
+    </tr>
+    <tr>
+      <td>Reserved (%rbp, return addr)</td>
+      <td>Neither — convention-managed</td>
+      <td>Handled structurally by the linkage protocol itself</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2>Access Link vs. Control Link</h2>
+
+<p>This is one of the most commonly confused distinctions in the topic.</p>
+
+<table>
+  <thead>
+    <tr>
+      <th></th>
+      <th>Control Link (Dynamic)</th>
+      <th>Access Link (Static)</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>Points to</strong></td>
+      <td>The AR of whoever called this function</td>
+      <td>The AR of the lexically enclosing procedure</td>
+    </tr>
+    <tr>
+      <td><strong>Follows</strong></td>
+      <td>The dynamic call chain (runtime execution order)</td>
+      <td>The static nesting structure (source code layout)</td>
+    </tr>
+    <tr>
+      <td><strong>Used for</strong></td>
+      <td>Returning to the caller after the function ends</td>
+      <td>Accessing variables from outer lexical scopes</td>
+    </tr>
+    <tr>
+      <td><strong>Same as caller?</strong></td>
+      <td>Always — by definition</td>
+      <td>Only when called from the lexically enclosing scope</td>
+    </tr>
+  </tbody>
+</table>
+
+<div class="insight">
+  Control link answers: "Who called me?" Access link answers: "Where were my enclosing variables defined?" These are only the same in simple, non-nested cases. In languages with nested procedures (Pascal, Ada, some functional languages), they diverge.
+</div>
+
+<h3>When They Differ: A Concrete Example</h3>
+
+<pre><code>procedure main {
+  int x;                    -- declared at level 0
+
+  procedure p1 {            -- nested in main, level 1
+    use x;                  -- accesses main's x
+  }
+
+  procedure p2 {            -- nested in main, level 1
+    procedure q2 {          -- nested in p2, level 2
+      call p1;              -- p1 is a sibling in main's scope
+    }
+    call q2;
+  }
+
+  call p2;
+}</code></pre>
+
+<p>When <code>p1</code> is called from inside <code>q2</code>:</p>
+<ul>
+  <li><strong>Control link</strong> of <code>p1</code>'s AR points to <code>q2</code>'s AR (that's who called it at runtime)</li>
+  <li><strong>Access link</strong> of <code>p1</code>'s AR points to <code>main</code>'s AR (that's where <code>p1</code> is textually defined, so that's where its non-local variables live)</li>
+</ul>
+
+<div class="warning">
+  The access link is set by the CALLER, not the callee. The caller knows the static nesting context and must pass the right enclosing scope pointer. The callee cannot figure this out on its own.
+</div>
+
+<h2>Static Coordinates and Variable Access</h2>
+
+<p>
+  The compiler translates every variable reference into a <strong>static coordinate</strong> <code>&lt;level, offset&gt;</code>:
+</p>
+<ul>
+  <li><strong>level</strong> = lexical nesting depth of the scope where the variable is <em>declared</em></li>
+  <li><strong>offset</strong> = byte offset within that scope's local data area</li>
+</ul>
+
+<p>
+  At runtime, to access <code>&lt;level, offset&gt;</code> from within a procedure at nesting level <em>k</em>, follow the access link chain <em>(k - level)</em> times, then add the offset.
+</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>Static Coordinate</th>
+      <th>Hops needed (current level = 2)</th>
+      <th>Access code (access link at ARP-4)</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>&lt;2, 8&gt;</code> — same level</td>
+      <td>0 hops — use current ARP directly</td>
+      <td><code>loadAI r0, 8 =&gt; r10</code></td>
+    </tr>
+    <tr>
+      <td><code>&lt;1, 12&gt;</code> — one level out</td>
+      <td>1 hop — follow access link once</td>
+      <td><code>loadAI r0, -4 =&gt; r1 ; loadAI r1, 12 =&gt; r10</code></td>
+    </tr>
+    <tr>
+      <td><code>&lt;0, 16&gt;</code> — two levels out</td>
+      <td>2 hops — follow access link twice</td>
+      <td><code>loadAI r0, -4 =&gt; r1 ; loadAI r1, -4 =&gt; r1 ; loadAI r1, 16 =&gt; r10</code></td>
+    </tr>
+  </tbody>
+</table>
+
+<div class="insight">
+  The cost of non-local variable access is proportional to lexical distance. Deeply nested access becomes expensive. This is why most practical languages (C, Go) forbid nested function definitions — it eliminates access links entirely and makes all non-local access O(1) via the static data area.
+</div>
+
+<h2>Recursive Call Example: fact(3)</h2>
+
+<pre><code>fact(n) = if n &lt;= 1 then 1 else n * fact(n-1)</code></pre>
+
+<p>Calling <code>fact(3)</code> builds this stack (growing downward):</p>
+
+<pre><code>+-------------------------------+  &lt;-- bottom of call chain
+| AR: fact(3)                   |
+|   n = 3                       |
+|   control link ---------------+--&gt; caller (main)
+|   return-result slot          |
++-------------------------------+
+        |  calls fact(2)
+        v
++-------------------------------+
+| AR: fact(2)                   |
+|   n = 2                       |
+|   control link ---------------+--&gt; fact(3)'s AR
+|   return-result slot          |
++-------------------------------+
+        |  calls fact(1)
+        v
++-------------------------------+
+| AR: fact(1)                   |
+|   n = 1                       |
+|   control link ---------------+--&gt; fact(2)'s AR
+|   return-result slot = 1      |
++-------------------------------+  &lt;-- top of stack (deepest frame)</code></pre>
+
+<p>
+  Unwinding: <code>fact(1)</code> returns 1 into its return slot. <code>fact(2)</code> reads that, computes <code>2 * 1 = 2</code>, stores it, pops its own frame. <code>fact(3)</code> reads 2, computes <code>3 * 2 = 6</code>. Each frame is independent — they share no variables.
+</p>
+
+<div class="insight">
+  Recursive calls work because each activation gets its own AR. The function definition is shared (one copy of code), but execution state is not. Stack depth = recursion depth, which is why deep recursion causes stack overflow.
+</div>
+
+<h2>Where Do Activation Records Live?</h2>
+
+<table>
+  <thead>
+    <tr>
+      <th>Scenario</th>
+      <th>Where the AR lives</th>
+      <th>Why</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Normal functions (LIFO call pattern)</td>
+      <td><strong>Stack</strong></td>
+      <td>Cheap allocation/deallocation; last-in first-out matches call return order</td>
+    </tr>
+    <tr>
+      <td>Closures / functions that outlive their caller</td>
+      <td><strong>Heap</strong></td>
+      <td>The AR must persist after the creating function returns; stack would reclaim it</td>
+    </tr>
+    <tr>
+      <td>Functions with no recursive calls and no calls to other functions (leaf)</td>
+      <td><strong>Static data area</strong></td>
+      <td>Only one invocation ever active; no need for a dynamic stack slot</td>
+    </tr>
+  </tbody>
+</table>
+
+<div class="warning">
+  If a language supports first-class functions or closures (Python, JavaScript, Scheme, Rust closures), the compiler may need to "escape analyze" each variable. Variables that are captured by a closure that outlives the current scope must be allocated on the heap, not the stack. Stack-allocated closures are a common source of dangling-pointer bugs in C.
+</div>
+
+<h2>Runtime Memory Layout</h2>
+
+<p>At runtime, the process address space is divided into four regions. Stack and heap grow toward each other, sharing unused middle space efficiently.</p>
+
+<pre><code>+--------------------------+  high address
+|         Code             |  -- read-only; fixed size; generated by compiler
++--------------------------+
+|       Static Data        |  -- global variables, string literals; fixed size
++--------------------------+
+|         Stack            |  -- activation records; grows DOWNWARD
+|           |              |
+|           v              |
+|                          |  -- unused address space in the middle
+|           ^              |
+|           |              |
+|          Heap            |  -- malloc/new; grows UPWARD
++--------------------------+  low address</code></pre>
+
+<table>
+  <thead>
+    <tr><th>Variable type</th><th>Where it lives</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>Local variables &amp; parameters</td><td>Activation record on the stack</td></tr>
+    <tr><td>Static / global variables</td><td>Static or global data area</td></tr>
+    <tr><td>Heap-allocated objects (<code>malloc</code>, <code>new</code>)</td><td>Heap</td></tr>
+    <tr><td>Variable-length arrays</td><td>Descriptor in AR; actual data at end of AR or on heap</td></tr>
+    <tr><td>Machine code</td><td>Code segment (text section)</td></tr>
+  </tbody>
+</table>
+
+<h2>Exam Checklist</h2>
+
+<ul class="checklist">
+  <li onclick="this.classList.toggle('checked')">
+    <span class="check-box"></span>
+    <span class="check-text">Draw an activation record with all fields: return value, parameters, control link, access link, saved registers, locals, temporaries.</span>
+  </li>
+  <li onclick="this.classList.toggle('checked')">
+    <span class="check-box"></span>
+    <span class="check-text">Give the x86-64 %rbp offsets for: arguments, return address, saved %rbp, and local variables.</span>
+  </li>
+  <li onclick="this.classList.toggle('checked')">
+    <span class="check-box"></span>
+    <span class="check-text">Describe all 4 phases of procedure linkage (pre-call, prolog, epilog, post-return) and who does each step.</span>
+  </li>
+  <li onclick="this.classList.toggle('checked')">
+    <span class="check-box"></span>
+    <span class="check-text">Explain the difference between access link and control link with the p1/q2/main example.</span>
+  </li>
+  <li onclick="this.classList.toggle('checked')">
+    <span class="check-box"></span>
+    <span class="check-text">Given static coordinate &lt;level, offset&gt; and current nesting level k, write the code to access it by chaining access links.</span>
+  </li>
+  <li onclick="this.classList.toggle('checked')">
+    <span class="check-box"></span>
+    <span class="check-text">Trace the stack through fact(3) — draw three ARs with control links and n values.</span>
+  </li>
+  <li onclick="this.classList.toggle('checked')">
+    <span class="check-box"></span>
+    <span class="check-text">State when ARs go on the stack vs. heap vs. static area and why.</span>
+  </li>
+  <li onclick="this.classList.toggle('checked')">
+    <span class="check-box"></span>
+    <span class="check-text">Sketch the runtime memory layout: Code | Static | Stack (down) ... Heap (up).</span>
+  </li>
+</ul>
+
+<div class="page-nav">
+  <a onclick="navigateTo(7)">&larr; Code Generation</a>
+  <a onclick="navigateTo(9)">Garbage Collection &rarr;</a>
+</div>

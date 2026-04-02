@@ -1,0 +1,265 @@
+<h1>Compiler Construction</h1>
+<p class="page-subtitle">Final Exam Survival Guide -- The 20% of concepts that cover 80% of exam power</p>
+
+<div class="insight">
+  A compiler is one thing: a function that maps source text to target instructions through a series of meaning-preserving transformations. Every topic in this course is a deep dive into one stage of that pipeline. Internalize the pipeline first, and everything else finds its place.
+</div>
+
+<h2>The Compilation Pipeline</h2>
+
+<p>Source code enters one end. Machine instructions exit the other. Six phases transform it step by step, each phase consuming the output of the previous one.</p>
+
+<div class="flow">
+  <span class="flow-step">Source Text</span>
+  <span class="flow-arrow">&rarr;</span>
+  <span class="flow-step">Scanner</span>
+  <span class="flow-arrow">&rarr;</span>
+  <span class="flow-step">Parser</span>
+  <span class="flow-arrow">&rarr;</span>
+  <span class="flow-step">Semantic Analyzer</span>
+  <span class="flow-arrow">&rarr;</span>
+  <span class="flow-step">IR Gen</span>
+  <span class="flow-arrow">&rarr;</span>
+  <span class="flow-step">Optimizer</span>
+  <span class="flow-arrow">&rarr;</span>
+  <span class="flow-step">Code Gen</span>
+  <span class="flow-arrow">&rarr;</span>
+  <span class="flow-step">Target Code</span>
+</div>
+
+<table>
+  <thead>
+    <tr>
+      <th>Phase</th>
+      <th>Input</th>
+      <th>Output</th>
+      <th>Core Task</th>
+      <th>Exam Weight</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>Scanner</strong></td>
+      <td>Character stream</td>
+      <td>Token stream</td>
+      <td>Regex &rarr; NFA &rarr; DFA; longest match</td>
+      <td><span class="nav-badge badge-mod">MOD</span></td>
+    </tr>
+    <tr>
+      <td><strong>Parser</strong></td>
+      <td>Token stream</td>
+      <td>Parse tree</td>
+      <td>Grammar, FIRST/FOLLOW, LL(1) table, recursive descent</td>
+      <td><span class="nav-badge badge-high">HIGH</span></td>
+    </tr>
+    <tr>
+      <td><strong>Semantic Analyzer</strong></td>
+      <td>Parse tree</td>
+      <td>Annotated tree</td>
+      <td>Type checking, scope resolution, symbol table</td>
+      <td><span class="nav-badge badge-mod">MOD</span></td>
+    </tr>
+    <tr>
+      <td><strong>IR Generator</strong></td>
+      <td>Annotated tree</td>
+      <td>IR code (S-code)</td>
+      <td>Tree walk emitting instructions; same structure as interpreter</td>
+      <td><span class="nav-badge badge-high">HIGH</span></td>
+    </tr>
+    <tr>
+      <td><strong>Optimizer</strong></td>
+      <td>IR code</td>
+      <td>Optimized IR</td>
+      <td>Dead code, constant folding, loop transforms</td>
+      <td><span class="nav-badge badge-mod">MOD</span></td>
+    </tr>
+    <tr>
+      <td><strong>Code Generator</strong></td>
+      <td>Optimized IR</td>
+      <td>Target instructions</td>
+      <td>Register allocation, instruction selection, activation records</td>
+      <td><span class="nav-badge badge-high">HIGH</span></td>
+    </tr>
+  </tbody>
+</table>
+
+<h2>The 6 Pareto Concepts</h2>
+
+<p>This course has ten topics. Six of them are tested on nearly every exam. Master these six and you have covered the overwhelming majority of what can be asked.</p>
+
+<div class="pareto">
+  <h3>1. The Compilation Pipeline</h3>
+  <p>The six-phase model is the skeleton of the entire course. Every other topic hangs off one bone of this skeleton. If an exam question feels unfamiliar, ask: which phase does this belong to? That question alone will orient you and surface the right tools.</p>
+  <p><strong>What to know cold:</strong> Phase names, input/output at each boundary, which phases are front-end (machine-independent) vs back-end (machine-specific).</p>
+</div>
+
+<div class="pareto">
+  <h3>2. FIRST / FOLLOW + LL(1) Parse Table</h3>
+  <p>The mathematical engine behind top-down parsing. FIRST tells you which terminal can start a string; FOLLOW tells you what can legally come after a non-terminal when it derives empty. Together they fill the parse table cells. Conflicts in the table mean the grammar is not LL(1).</p>
+  <p><strong>Algorithm:</strong> Initialize all sets to empty. Apply rules. Repeat until no set changes (fixed-point). Then fill table: for each production A &rarr; alpha, add it to M[A, t] for each t in FIRST(alpha); if epsilon in FIRST(alpha), also add to M[A, t] for each t in FOLLOW(A).</p>
+</div>
+
+<div class="pareto">
+  <h3>3. Grammar &rarr; Parser &rarr; Code</h3>
+  <p>The grammar IS the structure of the parser. Remove left recursion first. Then translate mechanically: one function per non-terminal, <code>match()</code> calls for terminals, mutual recursion mirrors the productions. This is the core implementation skill and is tested heavily.</p>
+  <p><strong>Left recursion removal:</strong> <code>A &rarr; A alpha | beta</code> becomes <code>A &rarr; beta A'</code> and <code>A' &rarr; alpha A' | epsilon</code>, or equivalently in EBNF: <code>A &rarr; beta { alpha }</code>.</p>
+</div>
+
+<div class="pareto">
+  <h3>4. S-code Generation</h3>
+  <p>S-code is the virtual machine instruction set used in this course. The code generator walks the parse tree and emits instructions. This is structurally identical to an interpreter -- it just prints instructions instead of executing them.</p>
+  <p><strong>Core instruction set:</strong> <code>lit n</code> (push constant), <code>get</code>/<code>put</code> (read/write local by offset), <code>ld</code>/<code>st</code> (read/write global), <code>jf label</code> (jump if false), <code>jmp label</code> (unconditional jump), <code>call</code>/<code>rtn</code>. Forward jumps require patching.</p>
+</div>
+
+<div class="pareto">
+  <h3>5. Activation Records + 4-Phase Linkage</h3>
+  <p>Every function call creates an activation record (stack frame) at runtime. The AR holds everything the function needs to execute and to return correctly. The 4-phase linkage protocol (pre-call, prolog, epilog, post-return) is the choreography for building and tearing down frames.</p>
+  <p><strong>AR fields in order:</strong> arguments, return value, return address, control link (caller's frame), access link (enclosing scope's frame), saved registers, local variables, temporaries. Access links, not control links, are used to resolve variable references across lexical scopes.</p>
+</div>
+
+<div class="pareto">
+  <h3>6. Two-Stack Parse Tree Construction</h3>
+  <p>Building a parse tree during parsing uses two stacks: an argument (operand) stack for subtrees and an operator stack for pending operators. When operator precedence allows, <code>makebintree()</code> pops two subtrees and one operator and builds a new node. Action routines embedded in the parser call these operations at the right moments.</p>
+  <p><strong>Why it matters:</strong> This is the bridge between parsing and code generation. The parse tree produced here is exactly what the S-code generator walks.</p>
+</div>
+
+<h2>Quick-Reference Decision Table</h2>
+
+<p>When you see an exam question, map it to a concept immediately. Do not re-derive from scratch.</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>Exam question contains...</th>
+      <th>Immediately think...</th>
+      <th>Page</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>"Name the compiler phases" or "what is a compiler?"</td>
+      <td>6-phase pipeline, compiler vs interpreter distinction</td>
+      <td><a onclick="navigateTo(1)" style="cursor:pointer;color:var(--accent)">Page 1</a></td>
+    </tr>
+    <tr>
+      <td>"Token, lexeme, pattern" or "longest match"</td>
+      <td>Scanner phase; token=category, lexeme=string, pattern=regex</td>
+      <td><a onclick="navigateTo(2)" style="cursor:pointer;color:var(--accent)">Page 2</a></td>
+    </tr>
+    <tr>
+      <td>Grammar with left recursion</td>
+      <td>Rewrite using EBNF <code>{ }</code> repetition or A' auxiliary non-terminal</td>
+      <td><a onclick="navigateTo(3)" style="cursor:pointer;color:var(--accent)">Page 3</a></td>
+    </tr>
+    <tr>
+      <td>"Compute FIRST" or "compute FOLLOW"</td>
+      <td>Iterative fixed-point: start empty, apply all rules, repeat until stable</td>
+      <td><a onclick="navigateTo(4)" style="cursor:pointer;color:var(--accent)">Page 4</a></td>
+    </tr>
+    <tr>
+      <td>"Build the LL(1) parse table"</td>
+      <td>FIRST fills cells; epsilon productions use FOLLOW; conflicts = not LL(1)</td>
+      <td><a onclick="navigateTo(4)" style="cursor:pointer;color:var(--accent)">Page 4</a></td>
+    </tr>
+    <tr>
+      <td>"Is this grammar LL(1)?" or "check for conflicts"</td>
+      <td>Look for left recursion, common prefixes, multiple cells filled</td>
+      <td><a onclick="navigateTo(4)" style="cursor:pointer;color:var(--accent)">Page 4</a></td>
+    </tr>
+    <tr>
+      <td>"Write a recursive descent parser for..."</td>
+      <td>One function per non-terminal, <code>match()</code> for terminals, lookahead</td>
+      <td><a onclick="navigateTo(5)" style="cursor:pointer;color:var(--accent)">Page 5</a></td>
+    </tr>
+    <tr>
+      <td>"Build the parse tree for..." or "trace the two stacks"</td>
+      <td>Argument stack + operator stack, <code>makebintree()</code>, action routines</td>
+      <td><a onclick="navigateTo(6)" style="cursor:pointer;color:var(--accent)">Page 6</a></td>
+    </tr>
+    <tr>
+      <td>"Generate S-code for..." or "translate to S-code"</td>
+      <td>get/put locals, ld/st globals, lit constants, jf/jmp control, patch forward jumps</td>
+      <td><a onclick="navigateTo(7)" style="cursor:pointer;color:var(--accent)">Page 7</a></td>
+    </tr>
+    <tr>
+      <td>"Show the activation record" or "trace the stack"</td>
+      <td>Draw frame: args, ret val, ret addr, control link, access link, locals, temps</td>
+      <td><a onclick="navigateTo(8)" style="cursor:pointer;color:var(--accent)">Page 8</a></td>
+    </tr>
+    <tr>
+      <td>"How does a function call work?" or "4-phase linkage"</td>
+      <td>Pre-call &rarr; Prolog &rarr; [execute body] &rarr; Epilog &rarr; Post-return</td>
+      <td><a onclick="navigateTo(8)" style="cursor:pointer;color:var(--accent)">Page 8</a></td>
+    </tr>
+    <tr>
+      <td>"Access variable from outer scope" or "static coordinate"</td>
+      <td>Follow access links (not control links), use &lt;level, offset&gt; coordinate</td>
+      <td><a onclick="navigateTo(8)" style="cursor:pointer;color:var(--accent)">Page 8</a></td>
+    </tr>
+    <tr>
+      <td>"Mark-sweep" or "garbage collection" or "reference counting"</td>
+      <td>Mark-sweep: 4 phases (alloc, mark roots, trace, sweep); ref counting: cycles are the problem</td>
+      <td><a onclick="navigateTo(9)" style="cursor:pointer;color:var(--accent)">Page 9</a></td>
+    </tr>
+  </tbody>
+</table>
+
+<h2>Study Priority Order</h2>
+
+<p>Not all topics are equal. Work through these in order. The first five alone cover the majority of a typical exam.</p>
+
+<ul class="checklist">
+  <li>
+    <span class="check-box"></span>
+    <span class="check-text"><strong>1. S-code Generation (Page 7)</strong> -- Highest exam density. Practice translating 3-4 complete programs end-to-end. If-else, while loops, function calls, recursive calls.</span>
+  </li>
+  <li>
+    <span class="check-box"></span>
+    <span class="check-text"><strong>2. FIRST / FOLLOW + LL(1) Table (Page 4)</strong> -- Pure algorithm. Practice the fixed-point iteration on 2-3 grammars from scratch until it feels mechanical.</span>
+  </li>
+  <li>
+    <span class="check-box"></span>
+    <span class="check-text"><strong>3. Activation Records + Procedure Linkage (Page 8)</strong> -- Draw the full stack for a recursive call like <code>fact(3)</code>. Label every field. Trace all 4 linkage phases.</span>
+  </li>
+  <li>
+    <span class="check-box"></span>
+    <span class="check-text"><strong>4. Recursive Descent Parser (Page 5)</strong> -- Start from a grammar, remove left recursion, write the parser functions. Do this without notes until it is automatic.</span>
+  </li>
+  <li>
+    <span class="check-box"></span>
+    <span class="check-text"><strong>5. Two-Stack Parse Tree Construction (Page 6)</strong> -- Trace <code>makebintree()</code> step-by-step on a 4-5 token expression. Know when each stack operation fires.</span>
+  </li>
+  <li>
+    <span class="check-box"></span>
+    <span class="check-text"><strong>6. CFG: Left Recursion + Ambiguity (Page 3)</strong> -- Identify and remove left recursion. Recognize ambiguity in if-else and arithmetic grammars.</span>
+  </li>
+  <li>
+    <span class="check-box"></span>
+    <span class="check-text"><strong>7. Compiler Phases -- Conceptual (Page 1)</strong> -- Quick review. Know the input/output of every phase. Know compiler vs interpreter distinction.</span>
+  </li>
+  <li>
+    <span class="check-box"></span>
+    <span class="check-text"><strong>8. Scanner (Page 2)</strong> -- Tokens, lexemes, patterns. Regex to NFA to DFA pipeline. Longest-match rule. Conceptual rather than deep algorithmic.</span>
+  </li>
+  <li>
+    <span class="check-box"></span>
+    <span class="check-text"><strong>9. Garbage Collection (Page 9)</strong> -- Mark-sweep four phases, reference counting and its weakness (cycles), generational GC idea. One question, not more.</span>
+  </li>
+  <li>
+    <span class="check-box"></span>
+    <span class="check-text"><strong>10. Optimizer (covered in Page 1)</strong> -- Know the categories: dead code elimination, constant folding, loop-invariant hoisting. No deep derivations expected.</span>
+  </li>
+</ul>
+
+<div class="warning">
+  The most common exam mistake is spending too long on Scanner/Regex questions (low weight) and running out of time for S-code and Activation Records (high weight). Budget time proportional to the weights above, not proportional to how familiar a topic feels.
+</div>
+
+<div class="insight">
+  The three heaviest exam topics -- S-code Generation, FIRST/FOLLOW, and Activation Records -- share a common structure: they are all mechanical algorithms with precise, reproducible steps. There is no insight required once you have internalized the procedure. The exam rewards practice, not cleverness.
+</div>
+
+<div class="page-nav">
+  <a onclick="navigateTo(9)">&larr; Garbage Collection</a>
+  <a onclick="navigateTo(1)">Intro to Compilers &rarr;</a>
+</div>

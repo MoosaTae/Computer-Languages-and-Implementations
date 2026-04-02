@@ -1,0 +1,288 @@
+<h1>Recursive Descent Parsing</h1>
+<p class="page-subtitle">One function per non-terminal. The grammar IS the code.</p>
+
+<div class="pareto">
+  Master these three mappings and you can write a parser for any LL(1) grammar in minutes: sequence becomes sequential calls, alternation becomes if/else on the current token, repetition becomes a while loop.
+</div>
+
+<h2>The Core Idea</h2>
+<p>A recursive descent parser is a direct mechanical translation of a grammar into mutually recursive functions. Each non-terminal in the grammar becomes exactly one function in your code. The structure of the grammar is preserved perfectly in the call graph of the program.</p>
+
+<div class="flow">
+  <span class="flow-step">Grammar rule</span>
+  <span class="flow-arrow">&rarr;</span>
+  <span class="flow-step">One function</span>
+  <span class="flow-arrow">&rarr;</span>
+  <span class="flow-step">Calls match() or other functions</span>
+  <span class="flow-arrow">&rarr;</span>
+  <span class="flow-step">Parse tree built by call stack</span>
+</div>
+
+<p>Each function does the same five things:</p>
+<ol>
+  <li>Look at the current token (lookahead, does not consume)</li>
+  <li>Decide which production applies based on FIRST sets</li>
+  <li>For each terminal in that production: call <code>match()</code></li>
+  <li>For each non-terminal in that production: call the corresponding function</li>
+  <li>For EBNF <code>{...}</code> repetition: loop with <code>while</code></li>
+</ol>
+
+<h2>The match() Function</h2>
+<p><code>match()</code> is the atomic operation of every recursive descent parser. It has one job: confirm the current token is what we expect, then advance the scanner.</p>
+
+<pre><code>match(expected):
+  if tok == expected
+    tok = next_token()    // advance -- consume the token
+  else
+    error("expected " + expected + ", got " + tok)</code></pre>
+
+<div class="insight">
+  Lookahead PEEKS at the current token without consuming it. <code>match()</code> CONSUMES the token and moves forward. Never confuse these two. Lookahead is just reading <code>tok</code>. Consuming is calling <code>match()</code>.
+</div>
+
+<h2>Translating Grammar Rules to Code</h2>
+<p>Every grammar construct has a direct, mechanical translation:</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>Grammar Construct</th>
+      <th>Code Translation</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>A = X Y Z</code> (sequence)</td>
+      <td><code>X(); Y(); Z();</code> &mdash; sequential calls</td>
+    </tr>
+    <tr>
+      <td><code>A = X | Y</code> (alternation)</td>
+      <td><code>if (tok in FIRST(X)) X(); else if (tok in FIRST(Y)) Y();</code></td>
+    </tr>
+    <tr>
+      <td><code>A = {X}</code> (EBNF repetition)</td>
+      <td><code>while (tok in FIRST(X)) X();</code></td>
+    </tr>
+    <tr>
+      <td>Terminal <code>t</code></td>
+      <td><code>match(t);</code></td>
+    </tr>
+    <tr>
+      <td>Non-terminal <code>B</code></td>
+      <td><code>B();</code> &mdash; function call</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3>Concrete Example: Arithmetic Expressions</h3>
+<p>Starting grammar:</p>
+<pre><code>ex   = term {op term}
+op   = + | -
+term = ( ex ) | id</code></pre>
+
+<p>Direct translation to parser functions:</p>
+<pre><code>op():
+  if tok == '+'   match('+')
+  else if tok == '-'  match('-')
+  else  error("expected + or -")
+
+term():
+  if tok == '('       // alternation: peek to decide which production
+    match('(')
+    ex()
+    match(')')
+  else if tok == id
+    match(id)
+  else
+    error("expected ( or id")
+
+ex():
+  term()              // first, always parse one term
+  while tok == '+' || tok == '-'   // {op term} becomes while loop
+    op()
+    term()</code></pre>
+
+<div class="insight">
+  The while loop is the key. EBNF <code>{op term}</code> means "zero or more repetitions of op term". That is precisely what <code>while (tok in FIRST(op)) { op(); term(); }</code> does. You loop as long as the next token starts a new repetition.
+</div>
+
+<h2>Handling Alternatives with Lookahead</h2>
+<p>When a non-terminal has multiple productions, you use the current token to decide which one to take. This is the "predictive" part of predictive parsing.</p>
+
+<pre><code>// Grammar: stmt = if-stmt | while-stmt | assign-stmt
+stmt():
+  if tok == IF
+    if_stmt()
+  else if tok == WHILE
+    while_stmt()
+  else if tok == ID
+    assign_stmt()
+  else
+    error("expected if, while, or identifier")</code></pre>
+
+<p>The token you check against is exactly the FIRST set of each alternative. If you computed FIRST sets on the previous page, you already have the condition for every if/else branch.</p>
+
+<div class="warning">
+  Every decision point must have a final else that calls error. If you forget it, the parser silently does nothing when it encounters an unexpected token. Always close every if/else chain with an error case.
+</div>
+
+<h2>EBNF Repetition Becomes while Loops</h2>
+<p>EBNF uses <code>{X}</code> to mean "zero or more X". This maps directly and exclusively to a while loop, not recursion. Using recursion here works but creates unnecessary stack depth and obscures the structure.</p>
+
+<pre><code>// Grammar: param-list = param {',' param}
+param_list():
+  param()
+  while tok == ','
+    match(',')
+    param()
+
+// Grammar: stmts = {stmt}
+stmts():
+  while tok in FIRST(stmt)
+    stmt()</code></pre>
+
+<div class="insight">
+  The while condition is always "is the current token in FIRST of what we're repeating?" If FIRST(stmt) = {IF, WHILE, ID, ...}, then loop while tok is one of those. When tok is something outside that set, the loop exits.
+</div>
+
+<h2>Operator Precedence Through Grammar Structure</h2>
+<p>This is one of the most elegant things in compiler design. You get correct operator precedence for free, just by structuring the grammar correctly. No special precedence tables needed in the parser.</p>
+
+<p><strong>The rule:</strong> higher-precedence operators go deeper in the grammar hierarchy (further from the start symbol). Lower-precedence operators sit higher up.</p>
+
+<pre><code>expr   = term   {('+' | '-') term}    // + and - bind loosest
+term   = factor {'*' factor}           // * binds tighter
+factor = '(' expr ')' | id | num       // atoms at the bottom</code></pre>
+
+<p>Why does this give correct precedence? Trace parsing <code>a + b * c</code>:</p>
+
+<pre><code>expr()
+  term()        // parses 'a' -- call stack goes: expr -> term -> factor
+  // sees '+', enters while loop
+  match('+')
+  term()        // parses 'b * c' entirely inside term()
+    factor()    // parses 'b'
+    // sees '*', enters while loop
+    match('*')
+    factor()    // parses 'c'
+    // loop ends: next token is not '*'
+  // back in expr: 'b * c' was grouped as one unit
+  // loop ends: no more '+' or '-'</code></pre>
+
+<div class="insight">
+  Multiplication binds tighter because <code>term()</code> fully completes before <code>expr()</code> ever sees the next <code>+</code> or <code>-</code>. The call stack is your implicit parse tree. Deep calls group tightly.
+</div>
+
+<table>
+  <thead>
+    <tr>
+      <th>Grammar Level</th>
+      <th>Handles</th>
+      <th>Precedence</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>expr</code> (top)</td>
+      <td><code>+</code>, <code>-</code></td>
+      <td>Lowest</td>
+    </tr>
+    <tr>
+      <td><code>term</code> (middle)</td>
+      <td><code>*</code>, <code>/</code></td>
+      <td>Medium</td>
+    </tr>
+    <tr>
+      <td><code>factor</code> (bottom)</td>
+      <td>atoms, parenthesized expressions</td>
+      <td>Highest</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2>Error Handling</h2>
+<p>Three layers of error detection in a recursive descent parser:</p>
+
+<h3>1. Failed match()</h3>
+<p>The simplest case. <code>match()</code> detects that the current token is not what the grammar demands at this point.</p>
+<pre><code>match(expected):
+  if tok != expected
+    error("line " + line + ": expected " + expected + ", got " + tok)</code></pre>
+
+<h3>2. Default branches</h3>
+<p>Inside every alternation, the final else handles unrecognized tokens. This catches tokens that belong to no known production.</p>
+<pre><code>stmt():
+  if tok == IF     ...
+  else if tok == WHILE  ...
+  else
+    error("unexpected token: " + tok)  // catches everything else</code></pre>
+
+<h3>3. Return codes</h3>
+<p>Functions return a status (1 = success, 0 = failure). The caller checks the return value and propagates errors up the call chain without crashing immediately.</p>
+<pre><code>oprnd():
+  if reg() != 0        // reg() returned 0 means failure
+    if tok == ','
+      match(',')
+      return num()
+    return 1
+  return 1             // no operand is also valid (epsilon production)</code></pre>
+
+<div class="warning">
+  Panic mode recovery: on a serious error, skip tokens until you find a "synchronization token" (like <code>;</code> or <code>}</code>) and restart parsing from there. This lets the parser report multiple errors in one pass rather than stopping at the first one. In exam questions, just know the concept: find a safe restart point and continue.
+</div>
+
+<h2>Complete Example: ASM Parser</h2>
+<p>The course uses an assembly language parser as a complete worked example. Here is the grammar and the direct translation:</p>
+
+<pre><code>// Grammar:
+// asm    = op oprnd asm | EOF
+// op     = CLRA | MOV | ADD | MOVA
+// oprnd  = reg ',' num | reg | empty
+// reg    = R[0..31]</code></pre>
+
+<pre><code>reg():
+  match('R')
+  return num()       // returns the register number
+
+op():
+  switch tokentype()
+    case MOV:  match('MOV');  return 1
+    case ADD:  match('ADD');  return 1
+    case CLRA: match('CLRA'); return 1
+    case MOVA: match('MOVA'); return 1
+    default:   return 0       // not a valid opcode
+
+oprnd():
+  if reg() != 0          // try to parse a register
+    if tok == ','        // lookahead: is there a second operand?
+      match(',')
+      return num()       // reg , num production
+    return 1             // just reg production
+  return 1               // empty production (epsilon)
+
+asm():
+  if tok == EOF   return 1          // base case
+  if op() != 0                      // try to parse an instruction
+    oprnd()
+    asm()                           // recurse for next instruction
+  return 0</code></pre>
+
+<div class="insight">
+  In <code>oprnd()</code>, the parser first tries to parse a register. If that succeeds, it checks for a comma using lookahead to decide between <code>reg , num</code> and <code>reg</code> alone. This single-token lookahead is exactly LL(1) in action. The comma is in the lookahead, not yet consumed.
+</div>
+
+<h2>Exam Checklist</h2>
+<ul class="checklist">
+  <li><span class="check-box"></span><span class="check-text">Given a grammar, I can write all parser functions directly from the grammar rules</span></li>
+  <li><span class="check-box"></span><span class="check-text">I know: sequence = sequential calls, alternation = if/else on tok, repetition = while loop</span></li>
+  <li><span class="check-box"></span><span class="check-text">I can write the match() function from memory and explain what it does</span></li>
+  <li><span class="check-box"></span><span class="check-text">I can trace parser execution step-by-step for a given input string</span></li>
+  <li><span class="check-box"></span><span class="check-text">I understand that grammar depth = operator precedence (deeper = tighter binding)</span></li>
+  <li><span class="check-box"></span><span class="check-text">I can handle lookahead decisions: peek at tok, then call match() to consume it</span></li>
+  <li><span class="check-box"></span><span class="check-text">I can explain the three error handling techniques: failed match, default branch, return codes</span></li>
+</ul>
+
+<div class="page-nav">
+  <a onclick="navigateTo(4)">&larr; FIRST &amp; FOLLOW</a>
+  <a onclick="navigateTo(6)">Parse Trees &rarr;</a>
+</div>

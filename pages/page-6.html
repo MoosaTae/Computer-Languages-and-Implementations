@@ -1,0 +1,265 @@
+<h1>Parse Trees &amp; Action Routines</h1>
+<p class="page-subtitle">The bridge between parsing and code generation — where syntax becomes structure.</p>
+
+<div class="pareto">
+  Master cons cells, the two-stack algorithm, and <code>makebintree()</code>. These three concepts are the entire mechanism by which a recursive descent parser produces a tree that code generation can walk. Everything else is detail.
+</div>
+
+<h2>What Is a Parse Tree?</h2>
+<p>Parsing answers "is this valid syntax?" A parse tree answers "what does it <em>mean</em>?" It encodes operator precedence and grouping as structure, not text. The expression <code>a + b * c</code> becomes:</p>
+
+<div class="diagram">        +
+       / \
+      a    *
+          / \
+         b    c</div>
+
+<p>The tree enforces that <code>b * c</code> is computed first — not by rules, but by shape. Code generation simply walks the tree depth-first: leaves are operands, internal nodes are operations.</p>
+
+<div class="flow">
+  <span class="flow-step">Source text</span>
+  <span class="flow-arrow">&rarr;</span>
+  <span class="flow-step">Parser + Action Routines</span>
+  <span class="flow-arrow">&rarr;</span>
+  <span class="flow-step">Parse Tree</span>
+  <span class="flow-arrow">&rarr;</span>
+  <span class="flow-step">Code Generator</span>
+  <span class="flow-arrow">&rarr;</span>
+  <span class="flow-step">Output Code</span>
+</div>
+
+<h2>Data Structure: Cons Cells</h2>
+<p>A parse tree is built from <strong>cons cells</strong> — the same linked-list primitive from Lisp. Every cell has two fields: <code>head</code> and <code>tail</code>.</p>
+
+<p>There are exactly two kinds of cells:</p>
+<table>
+  <thead>
+    <tr><th>Type</th><th>What it is</th><th>Analogy</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>Atom</strong></td>
+      <td>A leaf node. Holds a raw value: a variable name, a number, an operator symbol.</td>
+      <td>A word in a sentence — has no internal structure.</td>
+    </tr>
+    <tr>
+      <td><strong>Dot-pair</strong></td>
+      <td>An internal node. Holds two pointers: <code>head</code> points to one subtree, <code>tail</code> points to the rest of the list.</td>
+      <td>A branch in a tree — connects things together.</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3>Core Operations</h3>
+<table>
+  <thead>
+    <tr><th>Operation</th><th>What it does</th><th>When you use it</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>isatom(a)</code></td><td>Returns true if <code>a</code> is a leaf (atom)</td><td>Base case of recursion</td></tr>
+    <tr><td><code>head(a)</code></td><td>Returns the first element of a list</td><td>Get the operator of a subtree</td></tr>
+    <tr><td><code>tail(a)</code></td><td>Returns the rest of the list after head</td><td>Get the operands of a subtree</td></tr>
+    <tr><td><code>cons(h, t)</code></td><td>Creates a new dot-pair cell: head=h, tail=t</td><td>Building nodes during parsing</td></tr>
+    <tr><td><code>newatom(x)</code></td><td>Creates a new atom with value x</td><td>Turning a token into a leaf node</td></tr>
+  </tbody>
+</table>
+
+<div class="insight">
+  The expression <code>(+ a b)</code> as a list means: head = <code>+</code>, tail = a list <code>(a b)</code>. That tail is itself: head = <code>a</code>, tail = <code>(b)</code>. Which is: head = <code>b</code>, tail = <code>NIL</code>. Every binary operation becomes a 3-element list in this prefix notation.
+</div>
+
+<p>The recursive structure of cons cells mirrors the recursive structure of expressions. That is not a coincidence — it is why this representation works.</p>
+
+<pre><code><span class="comment">-- Copying a tree: the recursion perfectly matches the data structure</span>
+copy(a)
+  <span class="keyword">if</span> isatom(a)
+    <span class="keyword">return</span> newatom(copyof(a))       <span class="comment">-- leaf: copy the value</span>
+  <span class="keyword">else</span>
+    <span class="keyword">return</span> cons(copy(head(a)), copy(tail(a)))  <span class="comment">-- branch: copy both sides</span></code></pre>
+
+<h2>The Two-Stack Strategy</h2>
+<p>The parser cannot build a tree in a single pass over the token stream because it does not know the full context of an operator when it first sees it. The solution: use two stacks to defer decisions until you have all the pieces.</p>
+
+<table>
+  <thead>
+    <tr><th>Stack</th><th>Name</th><th>Holds</th><th>Think of it as</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>ystack</strong></td>
+      <td>Argument stack</td>
+      <td>Operands and completed subtrees</td>
+      <td>The "values" waiting to be combined</td>
+    </tr>
+    <tr>
+      <td><strong>zstack</strong></td>
+      <td>Operator stack</td>
+      <td>Operators pending application</td>
+      <td>The "verbs" waiting for their arguments</td>
+    </tr>
+  </tbody>
+</table>
+
+<pre><code>push(arg)      <span class="comment">-- push operand or completed subtree onto ystack</span>
+pushop(op)     <span class="comment">-- push operator onto zstack</span>
+pop()          <span class="comment">-- pop from ystack (returns a subtree or atom)</span>
+popop()        <span class="comment">-- pop from zstack (returns an operator)</span></code></pre>
+
+<div class="insight">
+  Two stacks is the key architectural decision. The argument stack accumulates subtrees bottom-up. The operator stack keeps operators until their operands are ready. <code>makebintree()</code> is the moment they combine.
+</div>
+
+<h2>The Key Function: makebintree()</h2>
+<p>This is the single most important function on this page. It fires whenever a complete binary operation is ready: two operands on ystack, one operator on zstack.</p>
+
+<pre><code>makebintree()
+  b  = pop()          <span class="comment">-- right operand (top of ystack)</span>
+  a  = pop()          <span class="comment">-- left operand</span>
+  op = popop()        <span class="comment">-- operator from zstack</span>
+  c  = cons(op, cons(a, cons(b, NIL)))   <span class="comment">-- build (op a b)</span>
+  push(c)             <span class="comment">-- push the new subtree back onto ystack</span></code></pre>
+
+<p>The result is a 3-element list <code>(op a b)</code> in prefix notation, pushed back as a single unit. From the perspective of the surrounding expression, this subtree is now just another operand.</p>
+
+<div class="insight">
+  After <code>makebintree()</code>, the two operands and their operator disappear from the stacks and are replaced by a single subtree node. This is the tree being built bottom-up, incrementally, in-place.
+</div>
+
+<div class="warning">
+  Pop order matters. <code>pop()</code> is called twice: first pop is the <strong>right</strong> operand, second pop is the <strong>left</strong> operand. Reverse this and you build a mirrored tree. For commutative operators like <code>+</code> the result is the same, but for <code>-</code> and <code>/</code> it is silently wrong.
+</div>
+
+<h2>Action Routines Embedded in the Parser</h2>
+<p>An action routine is a call to a tree-building function inserted directly inside the grammar rules of the parser. The parser drives the recognition; the action routines build the structure as a side effect.</p>
+
+<p>Grammar: <code>ex = term { op term }</code> and <code>term = ( ex ) | id</code></p>
+
+<pre><code>op()
+  <span class="keyword">if</span> tok == +
+    match(+)
+    pushop(+)               <span class="comment">-- ACTION: stash the operator for later</span>
+  <span class="keyword">else if</span> tok == -
+    match(-)
+    pushop(-)               <span class="comment">-- ACTION: stash the operator for later</span>
+  <span class="keyword">else if</span> tok == *
+    match(*)
+    pushop(*)
+  <span class="keyword">else if</span> tok == /
+    match(/)
+    pushop(/)
+
+term()
+  <span class="keyword">if</span> tok == (
+    match( ( )
+    ex()                    <span class="comment">-- recursively parse the inner expression</span>
+    match( ) )
+    makebintree()           <span class="comment">-- ACTION: seal inner result into a subtree</span>
+  <span class="keyword">else if</span> tok == id
+    match(id)
+    push(id)                <span class="comment">-- ACTION: push leaf atom onto ystack</span>
+
+ex()
+  term()
+  <span class="keyword">if</span> tok == + || tok == - || tok == * || tok == /
+    op()
+    term()
+    makebintree()           <span class="comment">-- ACTION: combine left op right into a subtree</span></code></pre>
+
+<div class="insight">
+  Notice the pattern: every time a complete "unit" is recognized, an action routine fires. Recognizing an <code>id</code>? Push a leaf. Closing a parenthesized group? Seal it with <code>makebintree()</code>. Completing an <code>op term</code> sequence? Combine with <code>makebintree()</code>. The parser and the tree builder are synchronized.
+</div>
+
+<h2>Handling Parenthesized Expressions</h2>
+<p>Parentheses mean "treat everything inside me as a single operand." The two-stack approach handles this naturally because <code>makebintree()</code> is called <em>immediately</em> after the closing paren is matched — before the surrounding expression continues.</p>
+
+<pre><code>term()
+  <span class="keyword">if</span> tok == (
+    match( ( )
+    ex()                 <span class="comment">-- everything inside gets pushed/popped within ex()</span>
+    match( ) )
+    makebintree()        <span class="comment">-- the inner result is now ONE subtree on ystack</span></code></pre>
+
+<p>Consider <code>(a + b) * c</code>:</p>
+<ol style="margin: 0 0 16px 24px;">
+  <li>Match <code>(</code>, recurse into <code>ex()</code></li>
+  <li>Inside: push <code>a</code>, pushop <code>+</code>, push <code>b</code></li>
+  <li>Match <code>)</code>, call <code>makebintree()</code> — ystack now has <code>(+ a b)</code> as one item</li>
+  <li>Back in outer <code>ex()</code>: pushop <code>*</code>, push <code>c</code></li>
+  <li>Call <code>makebintree()</code> — pops <code>c</code>, <code>(+ a b)</code>, and <code>*</code>, builds <code>(* (+ a b) c)</code></li>
+</ol>
+
+<div class="warning">
+  Without calling <code>makebintree()</code> at the close-paren, the inner operators and operands stay on the stacks and get mixed up with the outer expression. The close-paren call is what gives parentheses their binding power.
+</div>
+
+<h2>Complete Worked Example: a + b * c</h2>
+<p>Let us trace every step for the expression <code>a + b * c</code>. We assume <code>*</code> binds tighter by appearing as a nested <code>term</code> (or by grammar structure). In a flat grammar this trace shows how <code>makebintree()</code> fires after each complete operation.</p>
+
+<h3>Step-by-step trace</h3>
+<table>
+  <thead>
+    <tr><th>#</th><th>Token</th><th>Action</th><th>ystack (arg)</th><th>zstack (op)</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>1</td><td><code>a</code></td><td><code>push(a)</code></td><td>[a]</td><td>[]</td></tr>
+    <tr><td>2</td><td><code>+</code></td><td><code>pushop(+)</code></td><td>[a]</td><td>[+]</td></tr>
+    <tr><td>3</td><td><code>b</code></td><td><code>push(b)</code></td><td>[a, b]</td><td>[+]</td></tr>
+    <tr><td>4</td><td><code>*</code></td><td><code>pushop(*)</code></td><td>[a, b]</td><td>[+, *]</td></tr>
+    <tr><td>5</td><td><code>c</code></td><td><code>push(c)</code></td><td>[a, b, c]</td><td>[+, *]</td></tr>
+    <tr><td>6</td><td>(end of inner term)</td><td><code>makebintree()</code> for <code>*</code></td><td>[a, (* b c)]</td><td>[+]</td></tr>
+    <tr><td>7</td><td>(end of ex)</td><td><code>makebintree()</code> for <code>+</code></td><td>[(+ a (* b c))]</td><td>[]</td></tr>
+  </tbody>
+</table>
+
+<h3>Resulting tree</h3>
+<div class="diagram">           +
+          / \
+         a    *
+             / \
+            b    c</div>
+
+<p>In list notation: <code>(+ a (* b c))</code>. The <code>*</code> node is nested inside the <code>+</code> node, encoding that multiplication happens first.</p>
+
+<div class="insight">
+  The order in which <code>makebintree()</code> fires determines the shape of the tree, which determines operator precedence. Grammar structure and action routine placement are the two levers for controlling this. This is exactly how operator precedence is encoded without any explicit precedence rules.
+</div>
+
+<h2>How Parse Trees Connect to Code Generation</h2>
+<p>Once the tree exists, code generation becomes a recursive tree walk. The tree is the only interface between the two phases — the parser does not need to know about registers, and the code generator does not need to know about grammar.</p>
+
+<div class="flow">
+  <span class="flow-step">Leaf node (atom)</span>
+  <span class="flow-arrow">&rarr;</span>
+  <span class="flow-step">emit LOAD instruction</span>
+</div>
+<div class="flow">
+  <span class="flow-step">Internal node (op a b)</span>
+  <span class="flow-arrow">&rarr;</span>
+  <span class="flow-step">gen(a), gen(b), emit OP instruction</span>
+</div>
+
+<pre><code>gen(node)
+  <span class="keyword">if</span> isatom(node)
+    emit("LOAD", node)           <span class="comment">-- leaf: load the variable</span>
+  <span class="keyword">else</span>
+    gen(head(tail(node)))        <span class="comment">-- generate left operand</span>
+    gen(head(tail(tail(node))))  <span class="comment">-- generate right operand</span>
+    emit(head(node))             <span class="comment">-- emit the operator as an instruction</span></code></pre>
+
+<p>This post-order traversal naturally produces the correct evaluation order: both operands are computed before the operation that uses them. No additional scheduling is needed.</p>
+
+<h2>Exam Checklist</h2>
+<ul class="checklist">
+  <li><span class="check-box"></span><span class="check-text">I can draw the parse tree for any expression and write it in list notation <code>(op a b)</code>.</span></li>
+  <li><span class="check-box"></span><span class="check-text">I know the five cons-cell operations: <code>isatom</code>, <code>head</code>, <code>tail</code>, <code>cons</code>, <code>newatom</code> and what each returns.</span></li>
+  <li><span class="check-box"></span><span class="check-text">I can write out <code>makebintree()</code> from memory, with the correct pop order (right first, then left).</span></li>
+  <li><span class="check-box"></span><span class="check-text">I can trace ystack and zstack at each step for a given input expression.</span></li>
+  <li><span class="check-box"></span><span class="check-text">I understand why <code>makebintree()</code> is called immediately after the closing paren in <code>term()</code>.</span></li>
+  <li><span class="check-box"></span><span class="check-text">I can explain how the parse tree structure encodes operator precedence without explicit precedence rules.</span></li>
+  <li><span class="check-box"></span><span class="check-text">I can describe how <code>gen(node)</code> walks the parse tree to produce code.</span></li>
+</ul>
+
+<div class="page-nav">
+  <a onclick="navigateTo(5)">&larr; Recursive Descent</a>
+  <a onclick="navigateTo(7)">Code Generation &rarr;</a>
+</div>

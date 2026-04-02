@@ -1,0 +1,291 @@
+<h1>Scanner (Lexical Analysis)</h1>
+<p class="page-subtitle">The first phase: turning a raw character stream into a structured token stream</p>
+
+<div class="pareto">
+  The scanner is conceptually the simplest compiler phase, yet it teaches the fundamental abstraction the entire field rests on: <strong>regular languages</strong>. Master tokens, patterns, lexemes, and the regex&nbsp;&rarr;&nbsp;NFA&nbsp;&rarr;&nbsp;DFA pipeline, and lexical analysis is done.
+</div>
+
+<h2>What the Scanner Does</h2>
+
+<p>The scanner (lexer) reads source code one character at a time and groups characters into <strong>tokens</strong> -- the atomic vocabulary that the parser works with. It strips whitespace and comments, so the parser never sees them.</p>
+
+<div class="flow">
+  <span class="flow-step">Source characters</span>
+  <span class="flow-arrow">&rarr;</span>
+  <span class="flow-step">Scanner</span>
+  <span class="flow-arrow">&rarr;</span>
+  <span class="flow-step">Token stream</span>
+  <span class="flow-arrow">&rarr;</span>
+  <span class="flow-step">Parser</span>
+</div>
+
+<p>Concrete example -- one line of source, nine tokens out:</p>
+
+<pre><code>Input:   if (age >= 18) grade = 3.14
+
+Output:  [if]  [(]  [id:age]  [>=]  [num:18]  [)]  [id:grade]  [=]  [num:3.14]
+</code></pre>
+
+<div class="insight">
+  The parser never touches raw characters. Tokens are the agreed-upon interface between the scanner and every phase that follows. Design this interface well, and the rest of the compiler stays clean.
+</div>
+
+<h2>The Trinity: Token, Pattern, Lexeme</h2>
+
+<p>Three terms that beginners conflate. They are completely different things.</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>Term</th>
+      <th>What it is</th>
+      <th>Analogy</th>
+      <th>Example</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>Token</strong></td>
+      <td>A named category (a type)</td>
+      <td>The word class "noun"</td>
+      <td><code>identifier</code>, <code>number</code>, <code>if</code></td>
+    </tr>
+    <tr>
+      <td><strong>Pattern</strong></td>
+      <td>The rule (regex) that defines valid strings for a token</td>
+      <td>The grammar rule for nouns</td>
+      <td><code>letter (letter | digit)*</code></td>
+    </tr>
+    <tr>
+      <td><strong>Lexeme</strong></td>
+      <td>The actual string from source code that matched</td>
+      <td>The specific word "dog"</td>
+      <td><code>age</code>, <code>grade</code>, <code>q1</code></td>
+    </tr>
+  </tbody>
+</table>
+
+<p>Read it as: the <em>token</em> <code>identifier</code> has the <em>pattern</em> <code>letter(letter|digit)*</code>, and <code>age</code>, <code>grade</code>, <code>q1</code> are all <em>lexemes</em> for that token.</p>
+
+<h3>Common token/lexeme pairs from lecture</h3>
+
+<table>
+  <thead>
+    <tr><th>Token</th><th>Pattern</th><th>Example Lexemes</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>identifier</code></td><td><code>letter (letter | digit)*</code></td><td><code>Age</code>, <code>grade</code>, <code>q1</code></td></tr>
+    <tr><td><code>number</code></td><td><code>(+|-)? digit+ (. digit+)? (E (+|-)? digit+)?</code></td><td><code>3.1416</code>, <code>-498127</code>, <code>1E10</code></td></tr>
+    <tr><td><code>keyword if</code></td><td>exact string <code>if</code></td><td><code>if</code>, <code>IF</code> (if case-insensitive)</td></tr>
+    <tr><td><code>&gt;=</code></td><td>exact string <code>&gt;=</code></td><td><code>&gt;=</code></td></tr>
+  </tbody>
+</table>
+
+<div class="warning">
+  Token and lexeme are not synonyms. <code>identifier</code> is a token (a category). <code>age</code> is a lexeme (a specific string). Mixing them up is a guaranteed point loss on exams.
+</div>
+
+<h2>Regular Expressions for Token Patterns</h2>
+
+<p>Regular expressions are the formal tool for writing patterns. The core operators:</p>
+
+<table>
+  <thead>
+    <tr><th>Operator</th><th>Meaning</th><th>Example</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>ab</code></td><td>Concatenation: a then b</td><td><code>if</code></td></tr>
+    <tr><td><code>a | b</code></td><td>Alternation: a or b</td><td><code>letter | digit</code></td></tr>
+    <tr><td><code>a*</code></td><td>Kleene star: zero or more a</td><td><code>digit*</code></td></tr>
+    <tr><td><code>a+</code></td><td>One or more a (shorthand for <code>aa*</code>)</td><td><code>digit+</code></td></tr>
+    <tr><td><code>a?</code></td><td>Zero or one a (optional)</td><td><code>(+|-)?</code></td></tr>
+    <tr><td><code>(a)</code></td><td>Grouping</td><td><code>(+|-)?</code></td></tr>
+  </tbody>
+</table>
+
+<p>The full number pattern, broken down:</p>
+
+<pre><code>number  =  (+ | -)?  digit+  (. digit+)?  (E (+ | -)? digit+)?
+           ^sign     ^integer ^fraction    ^scientific notation
+</code></pre>
+
+<div class="insight">
+  Regular expressions define exactly the class of languages recognizable by finite automata. That equivalence is why RE &rarr; NFA &rarr; DFA works at all. It is not a trick -- it is a theorem.
+</div>
+
+<h2>The Regex &rarr; NFA &rarr; DFA Pipeline</h2>
+
+<p>Writing a regex is the human-friendly part. Running it efficiently requires converting it into a machine. The pipeline:</p>
+
+<div class="flow">
+  <span class="flow-step">Regex (per token)</span>
+  <span class="flow-arrow">&rarr;</span>
+  <span class="flow-step">NFA (Thompson's)</span>
+  <span class="flow-arrow">&rarr;</span>
+  <span class="flow-step">Combined NFA</span>
+  <span class="flow-arrow">&rarr;</span>
+  <span class="flow-step">DFA (subset construction)</span>
+  <span class="flow-arrow">&rarr;</span>
+  <span class="flow-step">Scanner code</span>
+</div>
+
+<h3>Step by step</h3>
+
+<table>
+  <thead>
+    <tr><th>Step</th><th>What happens</th><th>Key property</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>1. Write regex</td>
+      <td>One regex per token type</td>
+      <td>Human-readable specification</td>
+    </tr>
+    <tr>
+      <td>2. Build NFA per regex</td>
+      <td>Thompson's construction: mechanical, one fragment per operator</td>
+      <td>Nondeterministic -- multiple active states at once</td>
+    </tr>
+    <tr>
+      <td>3. Combine NFAs</td>
+      <td>New start state with epsilon transitions to each token's NFA</td>
+      <td>One machine handles all tokens simultaneously</td>
+    </tr>
+    <tr>
+      <td>4. NFA &rarr; DFA</td>
+      <td>Subset construction: each DFA state = a <em>set</em> of NFA states</td>
+      <td>Deterministic -- exactly one active state, O(n) scan</td>
+    </tr>
+    <tr>
+      <td>5. Implement DFA</td>
+      <td>Either nested switch/if or a 2D transition table</td>
+      <td>Ready to run on real input</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3>Two implementation strategies for the DFA</h3>
+
+<table>
+  <thead>
+    <tr><th>Strategy</th><th>How it works</th><th>Trade-off</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>Nested switch / if</strong></td>
+      <td>State machine encoded directly in control flow; each state is a case</td>
+      <td>Fast, easy to read; hard to regenerate automatically</td>
+    </tr>
+    <tr>
+      <td><strong>Transition table</strong></td>
+      <td><code>next_state = table[current_state][input_char]</code></td>
+      <td>Easy to auto-generate (lex/flex); one extra memory lookup per character</td>
+    </tr>
+  </tbody>
+</table>
+
+<pre><code>/* Transition table lookup -- the core loop */
+state = START;
+while ((c = next_char()) != EOF) {
+    state = table[state][c];
+    if (is_accept[state]) emit_token(state);
+}
+</code></pre>
+
+<div class="pareto">
+  You do not need to memorize Thompson's construction step-by-step for most exams. What you must know: (1) regex defines the language, (2) NFA is the intermediate built from regex, (3) DFA runs it deterministically, (4) direction of transformation is always regex &rarr; NFA &rarr; DFA, never backward.
+</div>
+
+<h2>Disambiguating Rules</h2>
+
+<p>Real input is ambiguous. Two rules resolve every conflict:</p>
+
+<h3>Rule 1: Longest Match (Maximal Munch)</h3>
+<p>Always consume the longest possible string that matches any token pattern. The scanner reads ahead until no longer match is possible, then returns that longest match.</p>
+
+<pre><code>Input: <=
+  Naive:   token '<'  then  token '='    -- WRONG
+  Correct: token '<='  (one token)        -- RIGHT
+
+Input: ifx
+  Naive:   keyword 'if'  then  id 'x'   -- WRONG
+  Correct: identifier 'ifx'              -- RIGHT
+</code></pre>
+
+<h3>Rule 2: Keyword Priority</h3>
+<p>When the longest match ties between a keyword and an identifier, the keyword wins. <code>if</code> matches the identifier pattern <code>letter(letter|digit)*</code> -- but it is recognized as the keyword <code>if</code>, not as an identifier.</p>
+
+<p>In practice: scan first, then check a reserved-word table. If the lexeme is in the table, emit the keyword token; otherwise emit <code>identifier</code>.</p>
+
+<div class="warning">
+  Longest match is applied <em>before</em> keyword priority. First find the longest match, then check if it is a keyword. Getting the order wrong produces wrong tokens.
+</div>
+
+<h2>Scanner-Parser Interaction</h2>
+
+<p>The scanner is not autonomous. It is called on demand by the parser:</p>
+
+<div class="flow">
+  <span class="flow-step">Parser needs token</span>
+  <span class="flow-arrow">&rarr;</span>
+  <span class="flow-step">Calls scanner</span>
+  <span class="flow-arrow">&rarr;</span>
+  <span class="flow-step">Scanner reads chars</span>
+  <span class="flow-arrow">&rarr;</span>
+  <span class="flow-step">Returns (token, lexeme, attr)</span>
+  <span class="flow-arrow">&rarr;</span>
+  <span class="flow-step">Parser decides</span>
+</div>
+
+<p>The scanner may also evaluate <strong>attributes</strong> -- for example, converting the string <code>"3.14"</code> to the float value <code>3.14</code>, or recording the variable name <code>age</code> into the symbol table. These attributes travel with the token to later phases.</p>
+
+<h2>Concrete Scanning Example</h2>
+
+<p>Trace through <code>if (age >= 18)</code> character by character:</p>
+
+<pre><code>chars:  i  f  _  (  a  g  e  _  >  =  _  1  8  )
+        |_____|  |  |_______|  |__|  |  |__|  |
+           |     |      |       |    |    |    |
+         "if"   "("   "age"   ">="  " " "18"  ")"
+           |     |      |       |        |    |
+        keyword punc  ident   relop    num   punc
+        token   token token   token   token  token
+        (skip whitespace throughout)
+</code></pre>
+
+<p>Token stream produced:</p>
+
+<table>
+  <thead>
+    <tr><th>Token</th><th>Lexeme</th><th>Attribute</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>keyword</code></td><td><code>if</code></td><td>--</td></tr>
+    <tr><td><code>lparen</code></td><td><code>(</code></td><td>--</td></tr>
+    <tr><td><code>identifier</code></td><td><code>age</code></td><td>symbol table ptr</td></tr>
+    <tr><td><code>relop</code></td><td><code>&gt;=</code></td><td>GE</td></tr>
+    <tr><td><code>number</code></td><td><code>18</code></td><td>integer value 18</td></tr>
+    <tr><td><code>rparen</code></td><td><code>)</code></td><td>--</td></tr>
+  </tbody>
+</table>
+
+<div class="insight">
+  Notice that <code>&gt;=</code> is one token, not two. Longest match at work. And <code>if</code> is a keyword token, not an identifier, even though it satisfies the identifier pattern. Both disambiguation rules applied in this one short example.
+</div>
+
+<h2>Exam Checklist</h2>
+
+<ul class="checklist">
+  <li><span class="check-box"></span><span class="check-text">Distinguish token (category), pattern (regex rule), and lexeme (actual string)</span></li>
+  <li><span class="check-box"></span><span class="check-text">Write a regex for identifier: <code>letter (letter | digit)*</code></span></li>
+  <li><span class="check-box"></span><span class="check-text">Write a regex for number including optional sign, fraction, and exponent</span></li>
+  <li><span class="check-box"></span><span class="check-text">State the regex &rarr; NFA &rarr; DFA direction (never backward)</span></li>
+  <li><span class="check-box"></span><span class="check-text">Apply longest match: <code>&lt;=</code> is one token, <code>ifx</code> is an identifier</span></li>
+  <li><span class="check-box"></span><span class="check-text">Apply keyword priority: <code>if</code> matching identifier pattern still becomes keyword token</span></li>
+  <li><span class="check-box"></span><span class="check-text">Explain that the parser calls the scanner on demand (scanner is passive)</span></li>
+</ul>
+
+<div class="page-nav">
+  <a onclick="navigateTo(1)">&larr; Intro to Compilers</a>
+  <a onclick="navigateTo(3)">CFG &amp; Left Recursion &rarr;</a>
+</div>

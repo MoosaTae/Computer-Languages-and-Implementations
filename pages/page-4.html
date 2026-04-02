@@ -1,0 +1,362 @@
+<h1>FIRST and FOLLOW Sets</h1>
+<p class="page-subtitle">The lookup tables that make top-down parsing deterministic</p>
+
+<div class="pareto">
+  Master two definitions and three rules each. Everything else in LL(1) parsing flows from them. If you can compute FIRST and FOLLOW from scratch, you can build any LL(1) parse table.
+</div>
+
+<h2>Why These Sets Exist</h2>
+<p>A top-down parser reads one token and must immediately decide which production to expand. Without a systematic way to answer "which production leads to something starting with this token?", the parser would guess or backtrack. FIRST and FOLLOW eliminate that uncertainty.</p>
+
+<div class="insight">
+  FIRST(A) answers: "what tokens can A start with?" FOLLOW(A) answers: "what tokens can come right after A?" Together they let the parser make a deterministic choice at every step.
+</div>
+
+<div class="flow">
+  <span class="flow-step">Grammar</span>
+  <span class="flow-arrow">&rarr;</span>
+  <span class="flow-step">Compute FIRST</span>
+  <span class="flow-arrow">&rarr;</span>
+  <span class="flow-step">Compute FOLLOW</span>
+  <span class="flow-arrow">&rarr;</span>
+  <span class="flow-step">Build Parse Table M[A, t]</span>
+  <span class="flow-arrow">&rarr;</span>
+  <span class="flow-step">LL(1) Parser</span>
+</div>
+
+<h2>FIRST Sets</h2>
+<p><strong>FIRST(X)</strong> is the set of all terminals that can appear as the first symbol of any string derived from X. If X can derive the empty string (epsilon), then epsilon is also in FIRST(X).</p>
+
+<h3>Computation Rules</h3>
+<table>
+  <thead>
+    <tr><th>Case</th><th>Rule</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>X is a terminal</td>
+      <td>FIRST(X) = { X }</td>
+    </tr>
+    <tr>
+      <td>X is epsilon</td>
+      <td>FIRST(epsilon) = { epsilon }</td>
+    </tr>
+    <tr>
+      <td>X is a nonterminal with production X &rarr; Y1 Y2 ... Yn</td>
+      <td>Add FIRST(Y1) minus epsilon. If epsilon in FIRST(Y1), also add FIRST(Y2) minus epsilon. Continue until either epsilon is not in FIRST(Yi) or you exhaust all Yi. Add epsilon only if epsilon is in FIRST(Yi) for all i.</td>
+    </tr>
+  </tbody>
+</table>
+
+<p>The sequence rule is the critical one. Think of it as: "keep scanning right as long as the current symbol can vanish (derive epsilon)."</p>
+
+<pre><code>FIRST(Y1 Y2 ... Yn):
+  result = {}
+  for each Yi:
+    result = result + (FIRST(Yi) - {epsilon})
+    if epsilon not in FIRST(Yi):
+      return result          // Yi cannot vanish; stop here
+  result = result + {epsilon}  // all symbols can vanish
+  return result</code></pre>
+
+<div class="warning">
+  Epsilon propagates rightward, not leftward. If Y1 can derive epsilon, Y2 contributes to FIRST. But FIRST(Y1 Y2) contains epsilon only if BOTH Y1 and Y2 can derive epsilon. Many students forget the final epsilon addition step.
+</div>
+
+<h2>FOLLOW Sets</h2>
+<p><strong>FOLLOW(A)</strong> is the set of terminals (including $, the end-of-input marker) that can appear immediately to the right of A in some sentential form. Epsilon is never in a FOLLOW set.</p>
+
+<h3>Computation Rules</h3>
+<table>
+  <thead>
+    <tr><th>Rule</th><th>Condition</th><th>Action</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Rule 1</td>
+      <td>S is the start symbol</td>
+      <td>Add $ to FOLLOW(S)</td>
+    </tr>
+    <tr>
+      <td>Rule 2</td>
+      <td>Production B &rarr; ...A t... where t is a terminal</td>
+      <td>Add t to FOLLOW(A)</td>
+    </tr>
+    <tr>
+      <td>Rule 2b</td>
+      <td>Production B &rarr; ...A C... where C is a nonterminal</td>
+      <td>Add FIRST(C) minus epsilon to FOLLOW(A). If epsilon in FIRST(C), also add FOLLOW(B) to FOLLOW(A).</td>
+    </tr>
+    <tr>
+      <td>Rule 3</td>
+      <td>Production B &rarr; ...A (A is at the end, or everything after A can derive epsilon)</td>
+      <td>Add FOLLOW(B) to FOLLOW(A)</td>
+    </tr>
+  </tbody>
+</table>
+
+<div class="insight">
+  Rule 3 is where FOLLOW sets talk to each other. "If A ends a production for B, then whatever can follow B can also follow A." This creates dependencies between FOLLOW sets and is why we need fixed-point iteration.
+</div>
+
+<h2>The Fixed-Point Algorithm</h2>
+<p>Both FIRST and FOLLOW are computed by the same iterative strategy: start with empty sets, apply rules, repeat until nothing changes.</p>
+
+<pre><code>// Generic fixed-point iteration
+for each nonterminal A:
+  FIRST(A) = {}    // or FOLLOW(A) = {}
+
+changed = true
+while changed:
+  changed = false
+  for each production A -> alpha:
+    new_tokens = apply_rules(A, alpha)
+    if new_tokens is not a subset of FIRST(A):
+      FIRST(A) = FIRST(A) + new_tokens
+      changed = true</code></pre>
+
+<p>This terminates because:</p>
+<ul>
+  <li>Sets only grow (tokens are only added, never removed)</li>
+  <li>The maximum size of any set is bounded by the number of terminals</li>
+  <li>Therefore, after at most |terminals| + 1 rounds, nothing can change</li>
+</ul>
+
+<div class="insight">
+  Fixed-point iteration is a general technique in static analysis. You apply rules until a stable state (the "fixed point") is reached. The same pattern appears in dataflow analysis, type inference, and constraint solving.
+</div>
+
+<h2>Worked Example: Computing FIRST and FOLLOW</h2>
+
+<h3>Grammar</h3>
+<pre><code>Expr    -> Expr + Term | Term
+Term    -> Term * Primary | Primary
+Primary -> FunCall | Id | ( Expr )
+FunCall -> Id ( OptArgs )
+OptArgs -> epsilon | Args
+Args    -> Expr | Args , Expr</code></pre>
+
+<h3>FIRST Sets: Iteration by Iteration</h3>
+
+<p><strong>Round 0:</strong> All FIRST sets are empty.</p>
+<p><strong>Round 1:</strong> Apply rules to terminals and base productions.</p>
+<pre><code>FIRST(Primary) = FIRST(FunCall) u FIRST(Id) u FIRST( ( Expr ) )
+               = {} u {Id} u {(}
+               = {Id, (}          // FunCall still empty this round
+
+FIRST(FunCall) = {Id}             // starts with terminal Id
+
+FIRST(OptArgs) = {epsilon}        // has epsilon production; Args still empty
+
+FIRST(Args)    = {}               // FIRST(Expr) still empty</code></pre>
+
+<p><strong>Round 2:</strong> Propagate through the chain.</p>
+<pre><code>FIRST(Term)    = FIRST(Primary) = {Id, (}
+FIRST(Expr)    = FIRST(Term)    = {Id, (}
+FIRST(FunCall) = {Id}             // unchanged</code></pre>
+
+<p><strong>Round 3:</strong></p>
+<pre><code>FIRST(Args)    = FIRST(Expr)    = {Id, (}
+FIRST(OptArgs) = {epsilon, Id, (}  // epsilon + FIRST(Args)</code></pre>
+
+<p><strong>Round 4:</strong> No changes. Fixed point reached.</p>
+
+<h4>Final FIRST Sets</h4>
+<table>
+  <thead>
+    <tr><th>Nonterminal</th><th>FIRST</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>Expr</td><td>{ Id, ( }</td></tr>
+    <tr><td>Term</td><td>{ Id, ( }</td></tr>
+    <tr><td>Primary</td><td>{ Id, ( }</td></tr>
+    <tr><td>FunCall</td><td>{ Id }</td></tr>
+    <tr><td>OptArgs</td><td>{ epsilon, Id, ( }</td></tr>
+    <tr><td>Args</td><td>{ Id, ( }</td></tr>
+  </tbody>
+</table>
+
+<h3>FOLLOW Sets: Iteration by Iteration</h3>
+
+<p><strong>Round 0:</strong> FOLLOW(Expr) = { $ }, all others empty (Rule 1: Expr is start symbol).</p>
+
+<p><strong>Round 1:</strong> Scan every production for each rule.</p>
+<pre><code>From Expr -> Expr + Term:
+  FOLLOW(Expr) += {+}          // Rule 2: + follows Expr
+  FOLLOW(Term) += FOLLOW(Expr) // Rule 3: Term at end of production
+               = {$, +}
+
+From Primary -> ( Expr ):
+  FOLLOW(Expr) += {)}          // Rule 2: ) follows Expr
+
+From Term -> Term * Primary:
+  FOLLOW(Term)    += {*}       // Rule 2: * follows Term
+  FOLLOW(Primary) += FOLLOW(Term) // Rule 3: Primary at end
+
+From FunCall -> Id ( OptArgs ):
+  FOLLOW(OptArgs) += {)}       // Rule 2: ) follows OptArgs
+
+From Args -> Args , Expr:
+  FOLLOW(Args) += {,}          // Rule 2: , follows Args
+  FOLLOW(Expr) += FOLLOW(Args) // but FOLLOW(Args) = {,} so far</code></pre>
+
+<p>After Round 1:</p>
+<pre><code>FOLLOW(Expr)    = {$, +, )}
+FOLLOW(Term)    = {$, +, *}
+FOLLOW(Primary) = {$, +, *}
+FOLLOW(OptArgs) = {)}
+FOLLOW(Args)    = {,}</code></pre>
+
+<p><strong>Round 2:</strong> Re-apply with updated sets.</p>
+<pre><code>OptArgs -> Args: FOLLOW(Args) += FOLLOW(OptArgs) = {), ,}
+Args -> Args , Expr: FOLLOW(Expr) += FOLLOW(Args) = {$, +, ), ,}
+Expr -> ... Term: FOLLOW(Term) += FOLLOW(Expr) = {$, +, ), *}
+Term -> ... Primary: FOLLOW(Primary) += FOLLOW(Term) = {$, +, ), *}</code></pre>
+
+<p><strong>Round 3:</strong> Check FunCall.</p>
+<pre><code>Primary -> FunCall: FOLLOW(FunCall) += FOLLOW(Primary) = {$, +, ), *}
+</code></pre>
+
+<p><strong>Round 4:</strong> No changes.</p>
+
+<h4>Final FOLLOW Sets</h4>
+<table>
+  <thead>
+    <tr><th>Nonterminal</th><th>FOLLOW</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>Expr</td><td>{ $, +, ), , }</td></tr>
+    <tr><td>Term</td><td>{ $, +, ), * }</td></tr>
+    <tr><td>Primary</td><td>{ $, +, ), * }</td></tr>
+    <tr><td>FunCall</td><td>{ $, +, ), * }</td></tr>
+    <tr><td>OptArgs</td><td>{ ) }</td></tr>
+    <tr><td>Args</td><td>{ ), , }</td></tr>
+  </tbody>
+</table>
+
+<h2>Building the LL(1) Parse Table</h2>
+<p>The table M[A, t] tells the parser: "when the top of the stack is nonterminal A and the next input token is t, use this production."</p>
+
+<h3>Table Construction Algorithm</h3>
+<pre><code>for each production A -> alpha:
+  for each terminal t in FIRST(alpha) - {epsilon}:
+    M[A, t] = "A -> alpha"
+  if epsilon in FIRST(alpha):
+    for each terminal t in FOLLOW(A):  // including $
+      M[A, t] = "A -> alpha"</code></pre>
+
+<p>Intuition: if production A &rarr; alpha can start with t, use it when you see t. If alpha can vanish (derives epsilon), use it when you see something that can follow A -- meaning A will disappear and let that token be matched later.</p>
+
+<h3>Partial Parse Table for OptArgs</h3>
+<table>
+  <thead>
+    <tr><th>Nonterminal</th><th>Id</th><th>(</th><th>)</th><th>$</th><th>+</th><th>,</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>OptArgs</td>
+      <td>OptArgs &rarr; Args</td>
+      <td>OptArgs &rarr; Args</td>
+      <td>OptArgs &rarr; epsilon</td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>Args</td>
+      <td>Args &rarr; Expr</td>
+      <td>Args &rarr; Expr</td>
+      <td></td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+  </tbody>
+</table>
+
+<div class="warning">
+  The epsilon production for OptArgs goes into the ) column -- NOT because ) is in FIRST(epsilon), but because ) is in FOLLOW(OptArgs). This is Rule 2 of table construction: epsilon productions use FOLLOW.
+</div>
+
+<h2>LL(1) Conflicts</h2>
+<p>A grammar is LL(1) if and only if every cell M[A, t] has at most one production. A conflict means two productions compete for the same (nonterminal, token) pair -- the parser cannot decide deterministically.</p>
+
+<h3>Two Root Causes</h3>
+<table>
+  <thead>
+    <tr><th>Cause</th><th>Example</th><th>Symptom</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>Left recursion</strong></td>
+      <td>A &rarr; A x | y</td>
+      <td>Both productions contribute the same tokens to M[A, t]</td>
+    </tr>
+    <tr>
+      <td><strong>Common prefix</strong></td>
+      <td>A &rarr; x B | x C</td>
+      <td>Both productions have x in FIRST, so M[A, x] gets two entries</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3>Detecting Conflicts</h3>
+<p>When filling the table, if you try to add a production to a cell that already has one: that is a conflict. The grammar is not LL(1) as written.</p>
+
+<div class="insight">
+  Left recursion causes conflicts because A &rarr; A x and A &rarr; y have overlapping FIRST sets: both can lead to y's FIRST tokens. The fix (left recursion elimination) was covered in the previous section. The remaining conflict type -- common prefix -- is fixed by left factoring.
+</div>
+
+<h2>Left Factoring to Resolve Conflicts</h2>
+<p>Left factoring pulls out the shared prefix into a separate production, deferring the choice to a new nonterminal.</p>
+
+<h3>The Pattern</h3>
+<pre><code>// Before: common prefix x causes conflict
+A -> x B
+A -> x C
+
+// After: left factored
+A  -> x A'
+A' -> B
+A' -> C</code></pre>
+
+<h3>Classic Example: Dangling Else</h3>
+<pre><code>// Before: both start with "if ( E ) Stmt"
+Stmt -> if ( E ) Stmt
+Stmt -> if ( E ) Stmt else Stmt
+
+// After: left factor on "if ( E ) Stmt"
+Stmt  -> if ( E ) Stmt Stmt'
+Stmt' -> else Stmt
+Stmt' -> epsilon</code></pre>
+
+<p>Now M[Stmt, if] has exactly one production. M[Stmt', else] = "Stmt' &rarr; else Stmt" and M[Stmt', $] = M[Stmt', ...] = "Stmt' &rarr; epsilon" for anything in FOLLOW(Stmt').</p>
+
+<div class="warning">
+  Left factoring does not always work. If after left factoring you still have conflicts, the grammar may be inherently ambiguous or may require more than one token of lookahead (LL(k) for k &gt; 1, or a different parsing strategy entirely).
+</div>
+
+<h3>General Left Factoring Procedure</h3>
+<pre><code>1. Find all productions for A that share a common prefix alpha:
+   A -> alpha beta_1 | alpha beta_2 | ... | gamma (no shared prefix)
+
+2. Replace with:
+   A  -> alpha A' | gamma
+   A' -> beta_1 | beta_2 | ...
+
+3. Repeat until no two productions for any nonterminal share a prefix.</code></pre>
+
+<h2>Exam Readiness Checklist</h2>
+<ul class="checklist">
+  <li><span class="check-box"></span><span class="check-text">Compute FIRST of a sequence X1 X2 ... Xn correctly, propagating epsilon rightward</span></li>
+  <li><span class="check-box"></span><span class="check-text">Apply all three FOLLOW rules: start symbol gets $, look right for terminals, propagate from enclosing production at end</span></li>
+  <li><span class="check-box"></span><span class="check-text">Run fixed-point iteration: start empty, apply rules, stop when nothing changes</span></li>
+  <li><span class="check-box"></span><span class="check-text">Build an LL(1) table: epsilon productions use FOLLOW, others use FIRST</span></li>
+  <li><span class="check-box"></span><span class="check-text">Identify a conflict: two productions in one cell means not LL(1)</span></li>
+  <li><span class="check-box"></span><span class="check-text">Apply left factoring to resolve a common-prefix conflict</span></li>
+</ul>
+
+<div class="page-nav">
+  <a onclick="navigateTo(3)">&larr; CFG &amp; Left Recursion</a>
+  <a onclick="navigateTo(5)">Recursive Descent &rarr;</a>
+</div>

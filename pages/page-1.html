@@ -1,0 +1,251 @@
+<h1>Introduction to Compilers</h1>
+<p class="page-subtitle">The big picture: what a compiler is, how its phases connect, and why the pipeline structure underlies everything else in this course.</p>
+
+<h2>Compiler vs. Interpreter</h2>
+<p>Both translate source code -- but they differ in <em>when</em> execution happens.</p>
+
+<table>
+  <thead>
+    <tr>
+      <th></th>
+      <th>Compiler</th>
+      <th>Interpreter</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>Strategy</strong></td>
+      <td>Translate the entire program first, then run</td>
+      <td>Walk the parse tree and execute instructions live</td>
+    </tr>
+    <tr>
+      <td><strong>When execution happens</strong></td>
+      <td>After translation is complete</td>
+      <td>During the translation process</td>
+    </tr>
+    <tr>
+      <td><strong>Output</strong></td>
+      <td>Machine code or intermediate code</td>
+      <td>Direct results -- no persistent output</td>
+    </tr>
+    <tr>
+      <td><strong>Examples</strong></td>
+      <td>GCC, Clang, Go compiler</td>
+      <td>Python (CPython), Kamin's SLIC interpreter</td>
+    </tr>
+  </tbody>
+</table>
+
+<div class="insight">
+  A code generator is structurally an interpreter. The difference: instead of <em>executing</em> each node of the parse tree, it <em>emits</em> the machine instructions that will produce the same result later. Same tree traversal logic, different output action.
+</div>
+
+<h2>The 6-Phase Compilation Pipeline</h2>
+<p>Every compiler transforms source text through six sequential phases. Each phase takes one representation and produces another. Nothing skips ahead.</p>
+
+<div class="flow">
+  <span class="flow-step">Source Characters</span>
+  <span class="flow-arrow">&rarr;</span>
+  <span class="flow-step">Scanner</span>
+  <span class="flow-arrow">&rarr;</span>
+  <span class="flow-step">Tokens</span>
+  <span class="flow-arrow">&rarr;</span>
+  <span class="flow-step">Parser</span>
+  <span class="flow-arrow">&rarr;</span>
+  <span class="flow-step">Parse Tree</span>
+  <span class="flow-arrow">&rarr;</span>
+  <span class="flow-step">Semantic Analyzer</span>
+  <span class="flow-arrow">&rarr;</span>
+  <span class="flow-step">Annotated Tree</span>
+  <span class="flow-arrow">&rarr;</span>
+  <span class="flow-step">IR Code Gen</span>
+  <span class="flow-arrow">&rarr;</span>
+  <span class="flow-step">Intermediate Code</span>
+  <span class="flow-arrow">&rarr;</span>
+  <span class="flow-step">Optimizer</span>
+  <span class="flow-arrow">&rarr;</span>
+  <span class="flow-step">Optimized Code</span>
+  <span class="flow-arrow">&rarr;</span>
+  <span class="flow-step">Code Generator</span>
+  <span class="flow-arrow">&rarr;</span>
+  <span class="flow-step">Target Machine Code</span>
+</div>
+
+<table>
+  <thead>
+    <tr>
+      <th>Phase</th>
+      <th>Input</th>
+      <th>Output</th>
+      <th>What it does</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>1. Scanner</strong></td>
+      <td>Character stream</td>
+      <td>Token stream</td>
+      <td>Groups characters into meaningful lexical units (identifiers, numbers, operators). Discards whitespace and comments.</td>
+    </tr>
+    <tr>
+      <td><strong>2. Parser</strong></td>
+      <td>Token stream</td>
+      <td>Parse tree / AST</td>
+      <td>Checks that the token sequence obeys the grammar. Builds a tree encoding the syntactic structure.</td>
+    </tr>
+    <tr>
+      <td><strong>3. Semantic Analyzer</strong></td>
+      <td>Parse tree</td>
+      <td>Annotated tree</td>
+      <td>Checks meaning, primarily type correctness. Annotates each node with type information.</td>
+    </tr>
+    <tr>
+      <td><strong>4. Intermediate Code Gen</strong></td>
+      <td>Annotated tree</td>
+      <td>Three-address code (IR)</td>
+      <td>Translates the tree into a flat, machine-independent instruction sequence. The "universal handoff" between front and back end.</td>
+    </tr>
+    <tr>
+      <td><strong>5. Code Optimizer</strong></td>
+      <td>Intermediate code</td>
+      <td>Optimized IR</td>
+      <td>Replaces inefficient instruction patterns with equivalent but faster ones. Eliminates unnecessary temporaries, redundant loads, etc.</td>
+    </tr>
+    <tr>
+      <td><strong>6. Code Generator</strong></td>
+      <td>Optimized IR</td>
+      <td>Target machine code</td>
+      <td>Maps IR instructions to actual CPU instructions for the target architecture. Handles register allocation and instruction selection.</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2>Front-End vs. Back-End Split</h2>
+<p>The intermediate representation is a clean seam that divides the compiler into two independent halves.</p>
+
+<table>
+  <thead>
+    <tr>
+      <th></th>
+      <th>Front-End</th>
+      <th>Back-End</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>Phases included</strong></td>
+      <td>Scanner, Parser, Semantic Analyzer, IR Code Gen</td>
+      <td>Code Optimizer, Code Generator</td>
+    </tr>
+    <tr>
+      <td><strong>Depends on</strong></td>
+      <td>Source language rules and grammar</td>
+      <td>Target hardware architecture</td>
+    </tr>
+    <tr>
+      <td><strong>Reusability</strong></td>
+      <td>One front-end serves multiple back-ends (same language, different CPUs)</td>
+      <td>One back-end serves multiple front-ends (different languages, same CPU)</td>
+    </tr>
+    <tr>
+      <td><strong>Real-world example</strong></td>
+      <td>LLVM: Clang (C/C++), Rust, Swift all share the same LLVM back-end</td>
+      <td>GCC: C, C++, Fortran, Ada all compile to the same optimizer + code gen</td>
+    </tr>
+  </tbody>
+</table>
+
+<div class="insight">
+  LLVM is the canonical proof that this split works industrially. Apple, Google, and Mozilla all build on it. The intermediate representation (LLVM IR) is the contract -- the front-end produces it, the back-end consumes it. Neither side needs to know anything about the other.
+</div>
+
+<h2>Concrete Data Flow Example: <code>x = y + 3</code></h2>
+<p>Trace one assignment statement through all six phases to see exactly what changes at each step.</p>
+
+<pre><code>-- Source input --
+x = y + 3
+
+
+-- Phase 1: Scanner --
+Tokens: [id:x]  [=]  [id:y]  [+]  [num:3]
+
+Groups raw characters into labeled units.
+Whitespace is gone. "x" becomes token id:x, "3" becomes num:3.
+
+
+-- Phase 2: Parser --
+Parse tree:
+    (= x (+ y 3))
+
+Tokens arranged into a tree that encodes operator precedence and structure.
+"+" binds y and 3 before "=" assigns to x.
+
+
+-- Phase 3: Semantic Analyzer --
+Annotated tree:
+    (= x:int (+ y:int 3:int))
+
+Type annotations added to every node.
+Type checker confirms: int + int = int, assignable to int x. No errors.
+
+
+-- Phase 4: Intermediate Code Generation --
+t1 = y + 3
+x  = t1
+
+Tree flattened into three-address instructions.
+Each instruction has at most one operator and three operands.
+Temporary variable t1 introduced to hold the intermediate result.
+
+
+-- Phase 5: Code Optimizer --
+x = y + 3
+
+Temporary t1 eliminated -- "copy propagation" optimization.
+Semantically identical, but one fewer instruction.
+
+
+-- Phase 6: Code Generator --
+ld.y       ; load y into accumulator
+lit.3      ; push literal 3
+add        ; add top two stack values
+st.x       ; store result into x
+
+Final machine instructions for target CPU.
+Stack-based machine model used here (like Kamin's VM).
+</code></pre>
+
+<div class="pareto">
+  The pipeline is a chain of representation changes. Source text becomes tokens, tokens become a tree, the tree gains types, the typed tree becomes flat IR, IR gets cleaned up, IR becomes machine code. Every exam topic maps to exactly one phase: scanning = phase 1, CFG/parsing = phase 2, FIRST/FOLLOW = phase 2 mechanics, type checking = phase 3, activation records = runtime support for phase 6 output. Know the pipeline and you know where everything lives.
+</div>
+
+<div class="warning">
+  Students confuse "parse tree" and "AST." A parse tree includes every grammar symbol including parentheses and semicolons. An Abstract Syntax Tree (AST) strips the grammar scaffolding and keeps only the semantic structure. Most real compilers build an AST, not a raw parse tree. They serve the same purpose -- know the distinction when asked.
+</div>
+
+<h2>Why the Pipeline Structure Matters for This Course</h2>
+<p>Every major topic in this course is one phase of this pipeline examined in depth:</p>
+
+<ul>
+  <li><strong>CFG and Left Recursion</strong> -- the grammar formalism the Parser operates on (Phase 2)</li>
+  <li><strong>FIRST and FOLLOW sets</strong> -- the lookahead mechanism that drives Parser decisions (Phase 2)</li>
+  <li><strong>Recursive Descent Parsing</strong> -- one concrete algorithm for implementing Phase 2</li>
+  <li><strong>Code Generation and Three-Address Code</strong> -- how Phases 4 and 6 work</li>
+  <li><strong>Activation Records</strong> -- the runtime memory layout that makes generated code correct (support for Phase 6)</li>
+</ul>
+
+<p>Understanding the pipeline gives you a cognitive map. When you encounter a new concept, you can immediately ask: which phase does this belong to? What is its input? What does it produce? That question alone will orient you on every exam problem.</p>
+
+<h2>Exam Checklist</h2>
+<ul class="checklist">
+  <li><span class="check-box"></span><span class="check-text">Can I name all 6 compiler phases in order, with no prompting?</span></li>
+  <li><span class="check-box"></span><span class="check-text">Can I state the input and output representation for each phase?</span></li>
+  <li><span class="check-box"></span><span class="check-text">Can I explain the compiler vs. interpreter distinction precisely?</span></li>
+  <li><span class="check-box"></span><span class="check-text">Can I explain what the front-end / back-end split buys us and name a real system that uses it?</span></li>
+  <li><span class="check-box"></span><span class="check-text">Can I trace "x = y + 3" through all 6 phases and describe what changes at each step?</span></li>
+</ul>
+
+<div class="page-nav">
+  <a onclick="navigateTo(0)">&larr; Overview</a>
+  <a onclick="navigateTo(2)">Scanner &rarr;</a>
+</div>
